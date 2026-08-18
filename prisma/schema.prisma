@@ -1,0 +1,217 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String         @id @default(cuid())
+  name      String?
+  email     String         @unique
+  password  String?
+  role      String         @default("MEMBER")
+  clients   ClientMember[]
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+}
+
+model Client {
+  id        String         @id @default(cuid())
+  name      String
+  slug      String         @unique
+  logoUrl   String?
+  members   ClientMember[]
+  campaigns Campaign[]
+  domains      Domain[]
+  funnels      Funnel[]
+  assets       FileAsset[]
+  scratchCards ScratchCard[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model ClientMember {
+  id        String   @id @default(cuid())
+  userId    String
+  clientId  String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, clientId])
+  @@index([clientId])
+}
+
+model Campaign {
+  id            String   @id @default(cuid())
+  clientId      String
+  name          String
+  slug          String
+  status        String   @default("DRAFT")
+  playLimit     String   @default("UNLIMITED")
+  requireLead   Boolean  @default(false)
+  matchRequired Int      @default(3)
+  
+  client        Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  pages         Page[]
+  events        Event[]
+  domains       Domain[]
+  prizes        Prize[]
+  scratchPlays  ScratchPlay[]
+  scratchCards  ScratchCard[]
+  funnel        Funnel?  @relation(fields: [funnelId], references: [id])
+  funnelId      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, slug])
+  @@index([clientId, status])
+}
+
+model Funnel {
+  id          String   @id @default(cuid())
+  clientId    String
+  name        String
+  description String?
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  campaigns   Campaign[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([clientId])
+}
+
+model Page {
+  id         String   @id @default(cuid())
+  campaignId String
+  name       String   @default("Principal")
+  settings   Json?
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  blocks     Block[]
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([campaignId])
+}
+
+model Block {
+  id        String   @id @default(cuid())
+  pageId    String
+  type      String
+  version   Int      @default(1)
+  position  Int
+  enabled   Boolean  @default(true)
+  config    Json
+  page      Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([pageId, position])
+}
+
+model Domain {
+  id         String    @id @default(cuid())
+  clientId   String
+  campaignId String?
+  hostname   String    @unique
+  status     String    @default("PENDING")
+  client     Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([clientId])
+}
+
+model FileAsset {
+  id        String   @id @default(cuid())
+  clientId  String
+  name      String
+  url       String
+  mimeType  String
+  size      Int
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@index([clientId])
+}
+
+model Event {
+  id         String   @id @default(cuid())
+  campaignId String
+  type       String
+  sessionId  String?
+  metadata   Json?
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  createdAt  DateTime @default(now())
+
+  @@index([campaignId, type, createdAt])
+  @@index([sessionId])
+}
+
+model Prize {
+  id           String   @id @default(cuid())
+  campaignId   String?
+  name         String
+  description  String?
+  imageUrl     String?
+  icon         String?
+  value        Float?
+  probability  Float
+  quantity     Int
+  quantityUsed Int      @default(0)
+  active       Boolean  @default(true)
+  ctaText      String?
+  redirectUrl  String?
+  campaign     Campaign? @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  scratchCardId String?
+  scratchCard  ScratchCard? @relation(fields: [scratchCardId], references: [id], onDelete: Cascade)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([campaignId])
+  @@index([scratchCardId])
+}
+
+model ScratchPlay {
+  id             String   @id @default(cuid())
+  campaignId     String?
+  visitorId      String
+  winningPrizeId String?
+  resultType     String
+  grid           String
+  campaign       Campaign? @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  scratchCardId  String?
+  scratchCard    ScratchCard? @relation(fields: [scratchCardId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
+
+  @@index([campaignId, visitorId])
+  @@index([scratchCardId, visitorId])
+  @@unique([scratchCardId, visitorId])
+}
+
+model ScratchCard {
+  id         String   @id @default(cuid())
+  name       String
+  clientId   String
+  campaignId String
+  template   String   @default("vendedor-sincero")
+  status     String   @default("DRAFT") // DRAFT, PUBLISHED, PAUSED
+  settings   Json?
+  winningPrizeId String?
+  
+  client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  prizes     Prize[]
+  scratchPlays ScratchPlay[]
+  
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([clientId])
+  @@index([campaignId])
+}

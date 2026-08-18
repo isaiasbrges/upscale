@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+@theme inline {
+  /* Backgrounds */
+  --color-background: #050505;
+  --color-surface: rgba(17, 21, 25, 0.45);
+  --color-surface-elevated: rgba(23, 28, 33, 0.65);
+  
+  /* Text */
+  --color-foreground: #F7F8F8;
+  --color-foreground-secondary: #A5ADB4;
+  --color-foreground-muted: #6D7580;
+  
+  /* Semantic Colors (UpScale Identity) */
+  --color-primary: #183CCA;
+  --color-primary-hover: #2850F5;
+  --color-primary-dark: #102B96;
+  --color-primary-muted: #4A6BFF;
+  
+  --color-success: #16A34A;
+  --color-warning: #F59E0B;
+  --color-danger: #EF4444;
+  --color-info: #3485FF;
+  
+  /* Borders (Glassmorphism) */
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-hover: rgba(255, 255, 255, 0.15);
+  --color-glass-border: rgba(255, 255, 255, 0.1);
+
+  /* Radius */
+  --radius-sm: 6px;
+  --radius-md: 10px; /* Button default */
+  --radius-lg: 14px; /* Card default */
+  --radius-xl: 20px;
+  --radius-2xl: 28px;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
+  --shadow-floating: 0 10px 40px -10px rgba(0,0,0,0.5);
+  --shadow-glass-glow: 0 0 20px rgba(40, 80, 245, 0.15);
+
+  /* Typography */
+  --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;
+}
+
+body {
+  background-color: var(--color-background);
+  background-image: 
+    radial-gradient(ellipse at 50% 0%, rgba(24, 60, 202, 0.15), transparent 70%),
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 100% 100%, 32px 32px, 32px 32px;
+  background-position: center top, center center, center center;
+  background-attachment: fixed;
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+}
+
+html {
+  min-width: 320px;
+}
+
+button, a, input, textarea, select {
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 640px) {
+  body {
+    background-size: 100% 100%, 24px 24px, 24px 24px;
+    background-attachment: scroll;
+  }
+
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
