@@ -29,3 +29,14 @@ export const FUNNEL_STEP_TYPE_LABELS: Record<FunnelStepType, string> = {
   REDIRECT: "Redirecionamento",
   EXTERNAL_URL: "URL externa",
 };
+
+/** Tipos de etapa com destino público resolvível por /f/[stepId] (ver src/app/f/[stepId]/page.tsx). */
+const RESOLVABLE_FUNNEL_STEP_TYPES = new Set<FunnelStepType>(["PAGE", "SCRATCH_CARD", "REDIRECT", "EXTERNAL_URL", "THANK_YOU"]);
+
+export function isFunnelStepPubliclyResolvable(step: { type: string; pageId: string | null; scratchCardId: string | null }) {
+  const type = step.type as FunnelStepType;
+  if (!RESOLVABLE_FUNNEL_STEP_TYPES.has(type)) return false;
+  if (type === "PAGE") return Boolean(step.pageId);
+  if (type === "SCRATCH_CARD") return Boolean(step.scratchCardId);
+  return true;
+}

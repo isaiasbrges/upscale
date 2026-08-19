@@ -5,7 +5,7 @@ import { z } from "zod";
 import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { requireFunnelAccess, requireCampaignAccess } from "@/lib/access-control";
-import { FUNNEL_STEP_TYPES, type FunnelStepType } from "@/lib/funnel-step-types";
+import { FUNNEL_STEP_TYPES, type FunnelStepType, isFunnelStepPubliclyResolvable } from "@/lib/funnel-step-types";
 import { slugify } from "@/lib/utils";
 
 const URL_STEP_TYPES = new Set<FunnelStepType>(["REDIRECT", "EXTERNAL_URL"]);
@@ -194,8 +194,6 @@ export async function reorderFunnelStepsAction(funnelId: string, orderedStepIds:
   revalidatePath(`/dashboard/funnels/${funnelId}`);
 }
 
-const RESOLVABLE_STEP_TYPES = new Set<FunnelStepType>(["PAGE", "SCRATCH_CARD", "REDIRECT", "EXTERNAL_URL", "THANK_YOU"]);
-
 /**
  * Lista as etapas do funil vinculado a uma campanha que já têm um destino
  * público resolvível (ver src/app/f/[stepId]/page.tsx), para alimentar o
@@ -213,12 +211,6 @@ export async function getFunnelStepsForCampaign(campaignId: string) {
   if (!funnel) return [];
 
   return funnel.steps
-    .filter((step) => {
-      const type = step.type as FunnelStepType;
-      if (!RESOLVABLE_STEP_TYPES.has(type)) return false;
-      if (type === "PAGE") return Boolean(step.pageId);
-      if (type === "SCRATCH_CARD") return Boolean(step.scratchCardId);
-      return true;
-    })
+    .filter(isFunnelStepPubliclyResolvable)
     .map((step) => ({ id: step.id, name: step.name, type: step.type }));
 }

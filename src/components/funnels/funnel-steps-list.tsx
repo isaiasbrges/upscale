@@ -3,14 +3,14 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronUp, ChevronDown, Trash2, ExternalLink } from "lucide-react";
+import { ChevronUp, ChevronDown, Trash2, ExternalLink, Copy, Check } from "lucide-react";
 import { Card } from "@/design-system/components/card";
 import { Badge } from "@/design-system/components/badge";
 import { EmptyState } from "@/design-system/components/empty-state";
 import { Workflow } from "lucide-react";
 import { AddStepMenu } from "./add-step-menu";
 import { deleteFunnelStepAction, reorderFunnelStepsAction } from "@/actions/funnel-steps";
-import { FUNNEL_STEP_TYPE_LABELS, type FunnelStepType } from "@/lib/funnel-step-types";
+import { FUNNEL_STEP_TYPE_LABELS, isFunnelStepPubliclyResolvable, type FunnelStepType } from "@/lib/funnel-step-types";
 import { FUNNEL_STEP_TYPE_ICONS } from "./step-icons";
 
 type Step = {
@@ -35,6 +35,14 @@ export function FunnelStepsList({
 }) {
   const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  async function handleCopyLink(step: Step) {
+    const url = `${window.location.origin}/f/${step.id}`;
+    await navigator.clipboard.writeText(url);
+    setCopiedId(step.id);
+    setTimeout(() => setCopiedId(null), 2000);
+  }
 
   async function move(index: number, direction: -1 | 1) {
     const target = index + direction;
@@ -128,6 +136,17 @@ export function FunnelStepsList({
                     >
                       <ExternalLink className="h-4 w-4" />
                     </Link>
+                  )}
+                  {step.status === "PUBLISHED" && isFunnelStepPubliclyResolvable(step) && (
+                    <button
+                      type="button"
+                      onClick={() => handleCopyLink(step)}
+                      className="h-8 w-8 flex items-center justify-center rounded-md text-foreground-muted hover:bg-surface hover:text-foreground transition-colors"
+                      aria-label="Copiar link público"
+                      title="Copiar link público"
+                    >
+                      {copiedId === step.id ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
+                    </button>
                   )}
                   <button
                     type="button"
