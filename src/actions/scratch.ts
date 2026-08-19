@@ -31,6 +31,49 @@ function parseGrid(grid: string): string[] {
   }
 }
 
+type GridSlot = { prizeId: string | null; customText: string };
+
+/**
+ * Resolve o conteúdo configurado manualmente para as 9 casas da grade (aba
+ * "Grade" do editor de raspadinha): separa o ícone do prêmio vencedor
+ * (winnerIcon) do restante das casas configuradas (pool de perdedoras).
+ * Retorna null quando nenhuma casa foi configurada, para o chamador cair
+ * no comportamento automático anterior (derivar da lista de prêmios ativos).
+ */
+function resolveGridSlots(
+  settings: unknown,
+  prizes: { id: string; icon: string | null; imageUrl: string | null; name: string }[],
+  winningPrizeId: string | undefined,
+): { winnerIcon: string | null; pool: string[] } | null {
+  if (!settings || typeof settings !== "object" || !Array.isArray((settings as any).gridSlots)) {
+    return null;
+  }
+  const slots = (settings as { gridSlots: GridSlot[] }).gridSlots;
+
+  function resolveSlot(slot: GridSlot | undefined): string | null {
+    if (slot?.customText?.trim()) return slot.customText.trim();
+    if (slot?.prizeId) {
+      const prize = prizes.find((p) => p.id === slot.prizeId);
+      if (prize) return prize.icon || prize.imageUrl || prize.name;
+    }
+    return null;
+  }
+
+  let winnerIcon: string | null = null;
+  const pool: string[] = [];
+  for (const slot of slots) {
+    if (winningPrizeId && slot?.prizeId === winningPrizeId) {
+      winnerIcon = winnerIcon ?? resolveSlot(slot);
+      continue;
+    }
+    const value = resolveSlot(slot);
+    if (value) pool.push(value);
+  }
+
+  if (!winnerIcon && pool.length === 0) return null;
+  return { winnerIcon, pool };
+}
+
 export async function playScratchCard(
   scratchCardId: string,
   visitorId: string | undefined,
@@ -85,17 +128,20 @@ export async function playScratchCard(
       ? randomInt(1_000_000) < Math.round(probability * 10_000)
       : false;
 
+    const configuredGrid = resolveGridSlots(card.settings, card.prizes, configuredWinner?.id);
+
     const fallbackIcons = ["lose-1", "lose-2", "lose-3", "lose-4"];
     const losingIcons = available
       .filter((prize) => prize.id !== configuredWinner?.id)
       .map((prize) => prize.icon || prize.imageUrl)
       .filter((icon): icon is string => Boolean(icon));
-    const pool = losingIcons.length > 0 ? losingIcons : fallbackIcons;
+    const autoPool = losingIcons.length > 0 ? losingIcons : fallbackIcons;
+    const pool = configuredGrid && configuredGrid.pool.length > 0 ? configuredGrid.pool : autoPool;
     // Prêmios sem icon/imageUrl cadastrado ainda precisam de um símbolo para
     // desenhar a grade vencedora — sem isso a jogada era registrada como WIN
     // no banco (estoque decrementado) mas a grade renderizava um padrão de
     // derrota, já que não havia ícone nenhum para repetir 3x.
-    const winnerIcon = configuredWinner?.icon || configuredWinner?.imageUrl || "🏆";
+    const winnerIcon = configuredGrid?.winnerIcon || configuredWinner?.icon || configuredWinner?.imageUrl || "🏆";
     const grid = won && configuredWinner
       ? shuffle([
           winnerIcon, winnerIcon, winnerIcon,

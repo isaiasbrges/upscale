@@ -13,6 +13,16 @@ import { setWinningPrize, setScratchCardStatusAction, updateScratchCardAction } 
 import { ScratchRenderer } from "@/components/blocks/scratch/scratch-renderer";
 import { useRouter } from "next/navigation";
 
+const GRID_SIZE = 9;
+
+// customText: null = casa vazia (sem conteúdo configurado); string (mesmo "") = modo
+// "Personalizado" selecionado, com esse texto (pode estar vazio enquanto o admin digita).
+type GridSlot = { prizeId: string | null; customText: string | null };
+
+function emptyGridSlots(): GridSlot[] {
+  return Array.from({ length: GRID_SIZE }, () => ({ prizeId: null, customText: null }));
+}
+
 export function ScratchCardEditorClient({ scratchCard, prizes }: { scratchCard: any, prizes: any[] }) {
   const router = useRouter();
   const [name, setName] = useState(scratchCard.name || "Raspadinha Black Friday");
@@ -22,8 +32,16 @@ export function ScratchCardEditorClient({ scratchCard, prizes }: { scratchCard: 
   const [coverText, setCoverText] = useState(settings.coverText || "Raspadinha da Sorte");
   const [backgroundColor, setBackgroundColor] = useState(settings.backgroundColor || "#f8fafc");
   const [cardColor, setCardColor] = useState(settings.cardColor || "#183cca");
+  const [gridSlots, setGridSlots] = useState<GridSlot[]>(() => {
+    const stored = Array.isArray(settings.gridSlots) ? settings.gridSlots : [];
+    const base = emptyGridSlots();
+    for (let i = 0; i < GRID_SIZE; i++) {
+      if (stored[i]) base[i] = { prizeId: stored[i].prizeId ?? null, customText: stored[i].customText ?? null };
+    }
+    return base;
+  });
 
-  const [activeTab, setActiveTab] = useState<"settings" | "prizes">("settings");
+  const [activeTab, setActiveTab] = useState<"settings" | "prizes" | "grade">("settings");
   const [editingPrize, setEditingPrize] = useState<any>(null);
 
   const [winningPrizeId, setWinningPrizeId] = useState(scratchCard.winningPrizeId || "");
@@ -68,7 +86,7 @@ export function ScratchCardEditorClient({ scratchCard, prizes }: { scratchCard: 
     formData.set("campaignId", scratchCard.campaignId);
     formData.set("template", scratchCard.template || "vendedor-sincero");
     formData.set("status", status);
-    formData.set("settings", JSON.stringify({ coverText, backgroundColor, cardColor }));
+    formData.set("settings", JSON.stringify({ coverText, backgroundColor, cardColor, gridSlots }));
     const result = await updateScratchCardAction(scratchCard.id, {}, formData);
     setIsSaving(false);
     if (result?.error || result?.fieldErrors) {
@@ -112,6 +130,7 @@ export function ScratchCardEditorClient({ scratchCard, prizes }: { scratchCard: 
       <div className="flex gap-4 mb-4">
         <Button variant={activeTab === "settings" ? "primary" : "secondary"} onClick={() => setActiveTab("settings")}>Configurações</Button>
         <Button variant={activeTab === "prizes" ? "primary" : "secondary"} onClick={() => setActiveTab("prizes")}>Prêmios</Button>
+        <Button variant={activeTab === "grade" ? "primary" : "secondary"} onClick={() => setActiveTab("grade")} data-testid="tab-grade">Grade</Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
@@ -183,7 +202,7 @@ export function ScratchCardEditorClient({ scratchCard, prizes }: { scratchCard: 
                 </PanelContent>
               </Panel>
             </>
-          ) : (
+          ) : activeTab === "prizes" ? (
             <div className="flex flex-col gap-4">
               <Panel>
                 <PanelHeader>Configuração de Prêmios</PanelHeader>
@@ -243,6 +262,62 @@ export function ScratchCardEditorClient({ scratchCard, prizes }: { scratchCard: 
                 </PanelContent>
               </Panel>
             </div>
+          ) : (
+            <Panel>
+              <PanelHeader>Conteúdo de cada casa da grade</PanelHeader>
+              <PanelContent className="space-y-3">
+                <p className="text-xs text-foreground-muted">
+                  Escolha um prêmio já cadastrado ou digite um texto/emoji personalizado para cada uma das 9 casas.
+                  A posição sorteada em cada jogada continua aleatória — isso só define o que pode aparecer nas casas.
+                </p>
+                <div className="grid grid-cols-3 gap-2" data-testid="grid-slots">
+                  {gridSlots.map((slot, index) => {
+                    const mode = slot.prizeId ? slot.prizeId : slot.customText !== null ? "custom" : "";
+                    return (
+                      <div key={index} className="border border-border rounded-md p-2 space-y-1.5 bg-background" data-testid={`grid-slot-${index}`}>
+                        <span className="text-[10px] font-semibold text-foreground-muted uppercase">Casa {index + 1}</span>
+                        <select
+                          className="w-full text-xs p-1.5 rounded border border-border bg-surface"
+                          value={mode}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setGridSlots((prev) => {
+                              const next = [...prev];
+                              if (val === "") next[index] = { prizeId: null, customText: null };
+                              else if (val === "custom") next[index] = { prizeId: null, customText: next[index].customText ?? "" };
+                              else next[index] = { prizeId: val, customText: null };
+                              return next;
+                            });
+                          }}
+                        >
+                          <option value="">Vazio (aleatório)</option>
+                          <option value="custom">Personalizado</option>
+                          {prizes.map((p) => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </select>
+                        {mode === "custom" && (
+                          <input
+                            type="text"
+                            placeholder="Texto ou emoji"
+                            className="w-full text-xs p-1.5 rounded border border-border bg-surface"
+                            value={slot.customText ?? ""}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setGridSlots((prev) => {
+                                const next = [...prev];
+                                next[index] = { prizeId: null, customText: val };
+                                return next;
+                              });
+                            }}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </PanelContent>
+            </Panel>
           )}
         </div>
 
