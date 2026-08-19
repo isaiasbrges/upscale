@@ -121,7 +121,7 @@ export function FunnelStepsList({
                   </Badge>
                   {step.type === "PAGE" && step.pageId && campaignId && (
                     <Link
-                      href={`/dashboard/clients/${clientId}/campaigns/${campaignId}/builder`}
+                      href={`/dashboard/clients/${clientId}/campaigns/${campaignId}/builder?page=${step.pageId}`}
                       className="h-8 w-8 flex items-center justify-center rounded-md text-foreground-muted hover:bg-surface hover:text-foreground transition-colors"
                       aria-label="Editar conteúdo da página"
                     >

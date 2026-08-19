@@ -2,6 +2,8 @@ import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getNextFunnelStepPath } from "@/lib/funnel-public";
 import { PublicScratchPlay } from "@/components/blocks/scratch/public-scratch-play";
+import { BlockRenderer } from "@/components/blocks/block-renderer";
+import type { BlockType } from "@/lib/blocks/registry";
 
 /**
  * Resolve uma etapa de funil para o seu destino público real.
@@ -17,7 +19,12 @@ export default async function FunnelStepPage({ params }: { params: Promise<{ ste
   const step = await prisma.funnelStep.findUnique({
     where: { id: stepId },
     include: {
-      page: { include: { campaign: { include: { client: { select: { slug: true } } } } } },
+      page: {
+        include: {
+          campaign: { select: { status: true } },
+          blocks: { where: { enabled: true }, orderBy: { position: "asc" } },
+        },
+      },
       scratchCard: { select: { id: true, status: true, settings: true } },
     },
   });
@@ -27,9 +34,15 @@ export default async function FunnelStepPage({ params }: { params: Promise<{ ste
   const nextStepPath = await getNextFunnelStepPath(step);
 
   if (step.type === "PAGE") {
-    const campaign = step.page?.campaign;
-    if (!campaign || campaign.status !== "PUBLISHED") notFound();
-    redirect(`/p/${campaign.client.slug}/${campaign.slug}`);
+    const page = step.page;
+    if (!page || page.campaign.status !== "PUBLISHED") notFound();
+    return (
+      <main className="min-h-dvh bg-black">
+        {page.blocks.map((block) => (
+          <BlockRenderer key={block.id} type={block.type as BlockType} config={block.config as Record<string, unknown>} />
+        ))}
+      </main>
+    );
   }
 
   if (step.type === "SCRATCH_CARD") {

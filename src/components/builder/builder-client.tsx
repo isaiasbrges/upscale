@@ -17,10 +17,11 @@ type Block = {
 type BuilderClientProps = {
   clientId: string;
   campaignId: string;
+  pageId: string;
   blocks: Block[];
 };
 
-export function BuilderClient({ clientId, campaignId, blocks }: BuilderClientProps) {
+export function BuilderClient({ clientId, campaignId, pageId, blocks }: BuilderClientProps) {
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(
     blocks.length > 0 ? blocks[0].id : null
   );
@@ -80,7 +81,7 @@ export function BuilderClient({ clientId, campaignId, blocks }: BuilderClientPro
               })}
             </div>
           ) : (
-            <AddBlockPanel clientId={clientId} campaignId={campaignId} />
+            <AddBlockPanel clientId={clientId} campaignId={campaignId} pageId={pageId} />
           )}
         </div>
       </div>

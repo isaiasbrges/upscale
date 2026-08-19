@@ -7,9 +7,10 @@ import { blockRegistry, type BlockType } from "@/lib/blocks/registry";
 type AddBlockPanelProps = {
   clientId: string;
   campaignId: string;
+  pageId: string;
 };
 
-export function AddBlockPanel({ clientId, campaignId }: AddBlockPanelProps) {
+export function AddBlockPanel({ clientId, campaignId, pageId }: AddBlockPanelProps) {
   const [loadingType, setLoadingType] = useState<BlockType | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -17,7 +18,7 @@ export function AddBlockPanel({ clientId, campaignId }: AddBlockPanelProps) {
     setLoadingType(type);
     setError(null);
     try {
-      await addBlockAction(clientId, campaignId, type);
+      await addBlockAction(clientId, campaignId, pageId, type);
       window.location.reload();
     } catch (err: any) {
       setError(err.message || "Failed to add block");

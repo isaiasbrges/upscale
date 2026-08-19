@@ -156,7 +156,7 @@ export function FunnelStepCard({
 
       <div className="flex items-center gap-2 mt-4">
         {step.type === "PAGE" && step.pageId && campaignId && (
-          <Link href={`/dashboard/clients/${clientId}/campaigns/${campaignId}/builder`}>
+          <Link href={`/dashboard/clients/${clientId}/campaigns/${campaignId}/builder?page=${step.pageId}`}>
             <Button variant="secondary" size="sm">
               <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Editar conteúdo
             </Button>

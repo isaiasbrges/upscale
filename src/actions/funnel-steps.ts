@@ -22,13 +22,7 @@ async function ensureFunnelCampaign(funnelId: string, clientId: string, funnelNa
 
   const slug = `${slugify(funnelName) || "funil"}-${funnelId.slice(-6)}`;
   const campaign = await prisma.campaign.create({
-    data: {
-      clientId,
-      funnelId,
-      name: funnelName,
-      slug,
-      pages: { create: { name: "Principal" } },
-    },
+    data: { clientId, funnelId, name: funnelName, slug },
     select: { id: true },
   });
   return campaign.id;
@@ -82,10 +76,13 @@ export async function addFunnelStepAction(
   let scratchCardId: string | null = null;
 
   if (parsed.data.type === "PAGE") {
+    // Cada etapa PAGE ganha sua própria Page — um funil pode ter várias
+    // (ex.: Landing e Página da ação são conteúdos distintos), reaproveitar
+    // a mesma faria a segunda etapa editar por engano o conteúdo da primeira.
     const funnelName = await prisma.funnel.findUniqueOrThrow({ where: { id: funnelId }, select: { name: true } });
     const campaignId = await ensureFunnelCampaign(funnelId, funnel.clientId, funnelName.name);
-    const page = await prisma.page.findFirst({ where: { campaignId }, select: { id: true } });
-    pageId = page?.id ?? (await prisma.page.create({ data: { campaignId, name: "Principal" }, select: { id: true } })).id;
+    const page = await prisma.page.create({ data: { campaignId, name: parsed.data.name }, select: { id: true } });
+    pageId = page.id;
   } else if (parsed.data.type === "SCRATCH_CARD") {
     const funnelName = await prisma.funnel.findUniqueOrThrow({ where: { id: funnelId }, select: { name: true } });
     const campaignId = await ensureFunnelCampaign(funnelId, funnel.clientId, funnelName.name);
