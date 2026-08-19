@@ -73,7 +73,7 @@ const navGroups: NavGroup[] = [
 
 export function SidebarClient({ mobileOpen = false, onMobileClose }: { mobileOpen?: boolean; onMobileClose?: () => void }) {
   const pathname = usePathname();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
 
   return (<>
     {mobileOpen && <button className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm lg:hidden" aria-label="Fechar menu" onClick={onMobileClose} />}
