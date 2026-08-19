@@ -6,8 +6,33 @@ import { requireUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { requireFunnelAccess } from "@/lib/access-control";
 import { FUNNEL_STEP_TYPES, type FunnelStepType } from "@/lib/funnel-step-types";
+import { slugify } from "@/lib/utils";
 
 const URL_STEP_TYPES = new Set<FunnelStepType>(["REDIRECT", "EXTERNAL_URL"]);
+
+/**
+ * PAGE e SCRATCH_CARD são etapas "com conteúdo": além da linha na tabela
+ * FunnelStep, precisam de uma Page/ScratchCard de verdade para editar e
+ * publicar. Ambas exigem uma Campaign — se o funil ainda não tiver uma
+ * vinculada, criamos uma automaticamente para não travar o fluxo.
+ */
+async function ensureFunnelCampaign(funnelId: string, clientId: string, funnelName: string) {
+  const existing = await prisma.campaign.findFirst({ where: { funnelId }, select: { id: true } });
+  if (existing) return existing.id;
+
+  const slug = `${slugify(funnelName) || "funil"}-${funnelId.slice(-6)}`;
+  const campaign = await prisma.campaign.create({
+    data: {
+      clientId,
+      funnelId,
+      name: funnelName,
+      slug,
+      pages: { create: { name: "Principal" } },
+    },
+    select: { id: true },
+  });
+  return campaign.id;
+}
 
 const addStepSchema = z.object({
   name: z.string().trim().min(2, "O nome da etapa deve ter pelo menos 2 caracteres.").max(120, "O nome da etapa deve ter no máximo 120 caracteres."),
@@ -31,7 +56,7 @@ export async function addFunnelStepAction(
   formData: FormData,
 ): Promise<FunnelStepActionState> {
   const user = await requireUser();
-  await requireFunnelAccess(user.id, funnelId);
+  const funnel = await requireFunnelAccess(user.id, funnelId);
 
   const parsed = addStepSchema.safeParse({
     name: formData.get("name"),
@@ -53,17 +78,45 @@ export async function addFunnelStepAction(
     select: { order: true },
   });
 
+  let pageId: string | null = null;
+  let scratchCardId: string | null = null;
+
+  if (parsed.data.type === "PAGE") {
+    const funnelName = await prisma.funnel.findUniqueOrThrow({ where: { id: funnelId }, select: { name: true } });
+    const campaignId = await ensureFunnelCampaign(funnelId, funnel.clientId, funnelName.name);
+    const page = await prisma.page.findFirst({ where: { campaignId }, select: { id: true } });
+    pageId = page?.id ?? (await prisma.page.create({ data: { campaignId, name: "Principal" }, select: { id: true } })).id;
+  } else if (parsed.data.type === "SCRATCH_CARD") {
+    const funnelName = await prisma.funnel.findUniqueOrThrow({ where: { id: funnelId }, select: { name: true } });
+    const campaignId = await ensureFunnelCampaign(funnelId, funnel.clientId, funnelName.name);
+    const scratchCard = await prisma.scratchCard.create({
+      data: {
+        name: parsed.data.name,
+        clientId: funnel.clientId,
+        campaignId,
+        template: "vendedor-sincero",
+        status: "DRAFT",
+      },
+      select: { id: true },
+    });
+    scratchCardId = scratchCard.id;
+  }
+
   await prisma.funnelStep.create({
     data: {
       funnelId,
       name: parsed.data.name,
       type: parsed.data.type,
       order: (last?.order ?? -1) + 1,
+      pageId,
+      scratchCardId,
       config: (parsed.data.externalUrl ? { url: parsed.data.externalUrl } : undefined) as any,
     },
   });
 
   revalidatePath(`/dashboard/funnels/${funnelId}`);
+  revalidatePath(`/dashboard/scratch-cards`);
+  revalidatePath(`/dashboard/clients/${funnel.clientId}`);
   return {};
 }
 

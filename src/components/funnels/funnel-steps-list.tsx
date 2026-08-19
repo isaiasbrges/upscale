@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronUp, ChevronDown, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { ChevronUp, ChevronDown, Trash2, ExternalLink } from "lucide-react";
 import { Card } from "@/design-system/components/card";
 import { Badge } from "@/design-system/components/badge";
 import { EmptyState } from "@/design-system/components/empty-state";
@@ -12,9 +13,26 @@ import { deleteFunnelStepAction, reorderFunnelStepsAction } from "@/actions/funn
 import { FUNNEL_STEP_TYPE_LABELS, type FunnelStepType } from "@/lib/funnel-step-types";
 import { FUNNEL_STEP_TYPE_ICONS } from "./step-icons";
 
-type Step = { id: string; name: string; type: string; status: string };
+type Step = {
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+  pageId: string | null;
+  scratchCardId: string | null;
+};
 
-export function FunnelStepsList({ funnelId, steps }: { funnelId: string; steps: Step[] }) {
+export function FunnelStepsList({
+  funnelId,
+  clientId,
+  campaignId,
+  steps,
+}: {
+  funnelId: string;
+  clientId: string;
+  campaignId: string | null;
+  steps: Step[];
+}) {
   const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
 
@@ -93,6 +111,24 @@ export function FunnelStepsList({ funnelId, steps }: { funnelId: string; steps: 
                   <Badge variant={step.status === "PUBLISHED" ? "success" : "neutral"}>
                     {step.status === "PUBLISHED" ? "Publicado" : "Rascunho"}
                   </Badge>
+                  {step.type === "PAGE" && step.pageId && campaignId && (
+                    <Link
+                      href={`/dashboard/clients/${clientId}/campaigns/${campaignId}/builder`}
+                      className="h-8 w-8 flex items-center justify-center rounded-md text-foreground-muted hover:bg-surface hover:text-foreground transition-colors"
+                      aria-label="Editar conteúdo da página"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Link>
+                  )}
+                  {step.type === "SCRATCH_CARD" && step.scratchCardId && (
+                    <Link
+                      href={`/dashboard/scratch-cards/${step.scratchCardId}/edit`}
+                      className="h-8 w-8 flex items-center justify-center rounded-md text-foreground-muted hover:bg-surface hover:text-foreground transition-colors"
+                      aria-label="Editar raspadinha"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                    </Link>
+                  )}
                   <button
                     type="button"
                     onClick={() => handleDelete(step)}

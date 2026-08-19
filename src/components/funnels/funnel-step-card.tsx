@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2, CheckCircle2, Circle, Link2 } from "lucide-react";
+import Link from "next/link";
+import { Pencil, Trash2, CheckCircle2, Circle, Link2, ExternalLink } from "lucide-react";
 import { Card } from "@/design-system/components/card";
 import { Badge } from "@/design-system/components/badge";
 import { Button } from "@/components/ui/button";
@@ -19,15 +20,21 @@ import type { StepMetrics } from "@/lib/funnel-metrics";
 
 export function FunnelStepCard({
   funnelId,
+  clientId,
+  campaignId,
   step,
 }: {
   funnelId: string;
+  clientId: string;
+  campaignId: string | null;
   step: {
     id: string;
     name: string;
     type: string;
     status: string;
     config: unknown;
+    pageId: string | null;
+    scratchCardId: string | null;
     metrics: StepMetrics;
   };
 }) {
@@ -140,6 +147,20 @@ export function FunnelStepCard({
       </div>
 
       <div className="flex items-center gap-2 mt-4">
+        {step.type === "PAGE" && step.pageId && campaignId && (
+          <Link href={`/dashboard/clients/${clientId}/campaigns/${campaignId}/builder`}>
+            <Button variant="secondary" size="sm">
+              <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Editar conteúdo
+            </Button>
+          </Link>
+        )}
+        {step.type === "SCRATCH_CARD" && step.scratchCardId && (
+          <Link href={`/dashboard/scratch-cards/${step.scratchCardId}/edit`}>
+            <Button variant="secondary" size="sm">
+              <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Editar raspadinha
+            </Button>
+          </Link>
+        )}
         <Button variant="secondary" size="sm" onClick={() => setEditing(true)} disabled={pending}>
           <Pencil className="h-3.5 w-3.5 mr-1.5" /> Editar
         </Button>
