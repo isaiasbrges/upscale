@@ -8,7 +8,8 @@ import { Badge } from "@/design-system/components/badge";
 import { EmptyState } from "@/design-system/components/empty-state";
 import { Workflow } from "lucide-react";
 import { AddStepMenu } from "./add-step-menu";
-import { FUNNEL_STEP_TYPE_LABELS, type FunnelStepType, deleteFunnelStepAction, reorderFunnelStepsAction } from "@/actions/funnel-steps";
+import { deleteFunnelStepAction, reorderFunnelStepsAction } from "@/actions/funnel-steps";
+import { FUNNEL_STEP_TYPE_LABELS, type FunnelStepType } from "@/lib/funnel-step-types";
 import { FUNNEL_STEP_TYPE_ICONS } from "./step-icons";
 
 type Step = { id: string; name: string; type: string; status: string };

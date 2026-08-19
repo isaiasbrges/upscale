@@ -1,7 +1,7 @@
 import { Card } from "@/design-system/components/card";
 import { EmptyState } from "@/design-system/components/empty-state";
 import { BarChart3 } from "lucide-react";
-import { FUNNEL_STEP_TYPE_LABELS, type FunnelStepType } from "@/actions/funnel-steps";
+import { FUNNEL_STEP_TYPE_LABELS, type FunnelStepType } from "@/lib/funnel-step-types";
 import type { StepMetrics } from "@/lib/funnel-metrics";
 
 type StepWithMetrics = { id: string; name: string; type: string; metrics: StepMetrics };
