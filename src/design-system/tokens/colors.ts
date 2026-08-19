@@ -15,7 +15,7 @@ export const colors = {
     subtle: "#0C0F12",
   },
   
-  // Borders (Glassmorphism)
+  // Borders (sutis, sem efeito de vidro)
   border: {
     DEFAULT: "rgba(255, 255, 255, 0.08)",
     hover: "rgba(255, 255, 255, 0.12)",

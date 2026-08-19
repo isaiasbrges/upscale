@@ -35,7 +35,11 @@ export async function playScratchCard(
   scratchCardId: string,
   visitorId: string | undefined,
 ) {
-  const input = playSchema.parse({ scratchCardId, visitorId });
+  const parsed = playSchema.safeParse({ scratchCardId, visitorId });
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0]?.message ?? "Dados de jogada inválidos.");
+  }
+  const input = parsed.data;
 
   return prisma.$transaction(async (tx) => {
     const existing = await tx.scratchPlay.findUnique({

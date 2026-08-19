@@ -22,6 +22,19 @@ export async function requireCampaignAccess(userId: string, campaignId: string) 
   return campaign;
 }
 
+export async function requireFunnelAccess(userId: string, funnelId: string) {
+  const funnel = await prisma.funnel.findFirst({
+    where: {
+      id: funnelId,
+      client: { members: { some: { userId } } },
+    },
+    select: { id: true, clientId: true },
+  });
+
+  if (!funnel) throw new Error("Recurso não encontrado ou acesso negado");
+  return funnel;
+}
+
 export async function requirePrizeAccess(userId: string, prizeId: string) {
   const prize = await prisma.prize.findFirst({
     where: {

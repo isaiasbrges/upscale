@@ -1,17 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { createPrize, updatePrize, deletePrize } from "@/actions/prize";
+import { createPrize, updatePrize } from "@/actions/prize";
 import { useRouter } from "next/navigation";
 import { IconPicker } from "@/app/dashboard/clients/[clientId]/campaigns/[campaignId]/prizes/icon-picker";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
-export function ScratchPrizeForm({ 
-  campaignId, 
-  scratchCardId, 
-  initialData, 
-  onCancel 
-}: { 
+export function ScratchPrizeForm({
+  campaignId,
+  scratchCardId,
+  initialData,
+  onCancel
+}: {
   campaignId: string;
   scratchCardId: string;
   initialData?: any;
@@ -19,10 +22,14 @@ export function ScratchPrizeForm({
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const [formError, setFormError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
+    setFieldErrors({});
+    setFormError(null);
     const formData = new FormData(e.currentTarget);
     const data = {
       name: formData.get("name") as string,
@@ -38,59 +45,77 @@ export function ScratchPrizeForm({
       scratchCardId,
     };
 
-    try {
-      if (initialData) {
-        await updatePrize(initialData.id, data);
-        if (onCancel) onCancel();
-      } else {
-        await createPrize(campaignId, data);
-        (e.target as HTMLFormElement).reset();
-      }
-    } finally {
+    const result = initialData
+      ? await updatePrize(initialData.id, data)
+      : await createPrize(campaignId, data);
+
+    if (!result.success) {
+      setFieldErrors(result.fieldErrors ?? {});
+      setFormError(result.error ?? (result.fieldErrors ? "Verifique os dados informados e tente novamente." : null));
       setLoading(false);
-      router.refresh();
+      return;
     }
+
+    if (initialData) {
+      if (onCancel) onCancel();
+    } else {
+      (e.target as HTMLFormElement).reset();
+    }
+
+    setLoading(false);
+    router.refresh();
   }
 
   return (
     <form key={initialData?.id || "new"} onSubmit={handleSubmit} className="space-y-4 bg-surface p-4 rounded-lg shadow-sm border border-border">
       <h3 className="text-md font-semibold">{initialData ? "Editar Prêmio" : "Novo Prêmio"}</h3>
       <div>
-        <label className="block text-sm font-medium mb-1 text-foreground">Nome do Prêmio *</label>
-        <input required type="text" name="name" defaultValue={initialData?.name} className="w-full bg-background border border-border text-foreground p-2 rounded focus:ring-1 focus:ring-primary focus:outline-none" />
+        <Label htmlFor="name">Nome do Prêmio *</Label>
+        <Input required type="text" id="name" name="name" defaultValue={initialData?.name} />
+        {fieldErrors.name?.[0] && <p className="text-xs text-danger mt-1">{fieldErrors.name[0]}</p>}
       </div>
 
       <div>
-        <label className="block text-sm font-medium mb-1 text-foreground">Descrição</label>
-        <textarea name="description" defaultValue={initialData?.description} className="w-full bg-background border border-border text-foreground p-2 rounded focus:ring-1 focus:ring-primary focus:outline-none"></textarea>
+        <Label htmlFor="description">Descrição</Label>
+        <Textarea id="description" name="description" defaultValue={initialData?.description} />
+        {fieldErrors.description?.[0] && <p className="text-xs text-danger mt-1">{fieldErrors.description[0]}</p>}
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium mb-1 text-foreground">Probabilidade (0 a 1) *</label>
-          <input required type="number" step="0.0001" min="0" max="1" name="probability" defaultValue={initialData?.probability ?? "0.01"} className="w-full bg-background border border-border text-foreground p-2 rounded focus:ring-1 focus:ring-primary focus:outline-none" />
+          <Label htmlFor="probability">Probabilidade (0 a 1) *</Label>
+          <Input required type="number" step="0.0001" min="0" max="1" id="probability" name="probability" defaultValue={initialData?.probability ?? "0.01"} />
+          {fieldErrors.probability?.[0] && <p className="text-xs text-danger mt-1">{fieldErrors.probability[0]}</p>}
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1 text-foreground">Quantidade Total *</label>
-          <input required type="number" min="1" name="quantity" defaultValue={initialData?.quantity ?? "1"} className="w-full bg-background border border-border text-foreground p-2 rounded focus:ring-1 focus:ring-primary focus:outline-none" />
+          <Label htmlFor="quantity">Quantidade Total *</Label>
+          <Input required type="number" min="1" id="quantity" name="quantity" defaultValue={initialData?.quantity ?? "1"} />
+          {fieldErrors.quantity?.[0] && <p className="text-xs text-danger mt-1">{fieldErrors.quantity[0]}</p>}
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
         <div className="col-span-2">
-          <label className="block text-sm font-medium mb-2 text-foreground">Ícone (Selecione)</label>
+          <Label>Ícone (Selecione)</Label>
           <IconPicker name="icon" value={initialData?.icon} />
         </div>
         <div className="col-span-2">
-          <label className="block text-sm font-medium mb-1 text-foreground">URL da Imagem (Opcional)</label>
-          <input type="url" name="imageUrl" defaultValue={initialData?.imageUrl} className="w-full bg-background border border-border text-foreground p-2 rounded focus:ring-1 focus:ring-primary focus:outline-none" />
+          <Label htmlFor="imageUrl">URL da Imagem (Opcional)</Label>
+          <Input type="url" id="imageUrl" name="imageUrl" defaultValue={initialData?.imageUrl} />
+          {fieldErrors.imageUrl?.[0] && <p className="text-xs text-danger mt-1">{fieldErrors.imageUrl[0]}</p>}
         </div>
       </div>
 
       <div className="flex items-center gap-2 pt-2">
         <input type="checkbox" id="active" name="active" defaultChecked={initialData ? initialData.active : true} className="w-4 h-4 rounded text-primary focus:ring-primary" />
-        <label htmlFor="active" className="text-sm font-medium text-foreground">Prêmio Ativo</label>
+        <Label htmlFor="active" className="mb-0">Prêmio Ativo</Label>
       </div>
+
+      {formError && (
+        <div className="p-3 bg-danger/10 border border-danger/20 rounded-md">
+          <p className="text-sm text-danger font-medium">{formError}</p>
+        </div>
+      )}
 
       <div className="pt-2 flex gap-2">
         {initialData && (

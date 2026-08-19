@@ -77,12 +77,37 @@ model Funnel {
   clientId    String
   name        String
   description String?
+  status      String   @default("DRAFT") // DRAFT, PUBLISHED, ARCHIVED
   client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   campaigns   Campaign[]
+  steps       FunnelStep[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([clientId])
+}
+
+model FunnelStep {
+  id            String   @id @default(cuid())
+  funnelId      String
+  order         Int
+  name          String
+  type          String   // LANDING_PAGE, PAGE, SCRATCH_CARD, FORM, CHECKOUT, THANK_YOU, REDIRECT, EXTERNAL_URL
+  status        String   @default("DRAFT") // DRAFT, PUBLISHED
+  pageId        String?
+  scratchCardId String?
+  config        Json?
+
+  funnel        Funnel       @relation(fields: [funnelId], references: [id], onDelete: Cascade)
+  page          Page?        @relation(fields: [pageId], references: [id], onDelete: SetNull)
+  scratchCard   ScratchCard? @relation(fields: [scratchCardId], references: [id], onDelete: SetNull)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([funnelId, order])
+  @@index([pageId])
+  @@index([scratchCardId])
 }
 
 model Page {
@@ -92,6 +117,7 @@ model Page {
   settings   Json?
   campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   blocks     Block[]
+  funnelSteps FunnelStep[]
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -208,7 +234,8 @@ model ScratchCard {
   campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   prizes     Prize[]
   scratchPlays ScratchPlay[]
-  
+  funnelSteps FunnelStep[]
+
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

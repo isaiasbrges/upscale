@@ -3,29 +3,28 @@
 @theme inline {
   /* Backgrounds */
   --color-background: #050505;
-  --color-surface: rgba(17, 21, 25, 0.45);
-  --color-surface-elevated: rgba(23, 28, 33, 0.65);
-  
+  --color-surface: #111519;
+  --color-surface-elevated: #171C21;
+
   /* Text */
   --color-foreground: #F7F8F8;
   --color-foreground-secondary: #A5ADB4;
   --color-foreground-muted: #6D7580;
-  
+
   /* Semantic Colors (UpScale Identity) */
   --color-primary: #183CCA;
   --color-primary-hover: #2850F5;
   --color-primary-dark: #102B96;
   --color-primary-muted: #4A6BFF;
-  
+
   --color-success: #16A34A;
   --color-warning: #F59E0B;
   --color-danger: #EF4444;
   --color-info: #3485FF;
-  
-  /* Borders (Glassmorphism) */
+
+  /* Borders (sutis, sem efeito de vidro) */
   --color-border: rgba(255, 255, 255, 0.08);
   --color-border-hover: rgba(255, 255, 255, 0.15);
-  --color-glass-border: rgba(255, 255, 255, 0.1);
 
   /* Radius */
   --radius-sm: 6px;
@@ -33,12 +32,11 @@
   --radius-lg: 14px; /* Card default */
   --radius-xl: 20px;
   --radius-2xl: 28px;
-  
+
   /* Shadows */
   --shadow-sm: 0 1px 2px 0 rgba(0,0,0,0.05);
   --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06);
   --shadow-floating: 0 10px 40px -10px rgba(0,0,0,0.5);
-  --shadow-glass-glow: 0 0 20px rgba(40, 80, 245, 0.15);
 
   /* Typography */
   --font-sans: "Manrope", ui-sans-serif, system-ui, sans-serif;

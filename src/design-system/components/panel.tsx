@@ -7,7 +7,7 @@ export const Panel = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLD
       <div
         ref={ref}
         className={cn(
-          "rounded-lg border border-border bg-surface text-foreground shadow-floating flex flex-col backdrop-blur-xl backdrop-saturate-150 shadow-[inset_0_1px_1px_rgba(255,255,255,0.05)]", // rounded-lg maps to 20px
+          "rounded-lg border border-border bg-surface text-foreground shadow-floating flex flex-col shadow-[inset_0_1px_1px_rgba(255,255,255,0.04)]", // rounded-lg maps to 20px
           className
         )}
         {...props}

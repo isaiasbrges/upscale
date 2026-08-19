@@ -5,15 +5,23 @@ import { createPrize, updatePrize } from "@/actions/prize";
 import { useRouter, usePathname } from "next/navigation";
 import { IconPicker } from "./icon-picker";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Panel, PanelContent } from "@/design-system/components/panel";
 
 export default function PrizeForm({ campaignId, initialData }: { campaignId: string, initialData?: any }) {
   const router = useRouter();
   const pathname = usePathname();
   const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
+  const [formError, setFormError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
+    setFieldErrors({});
+    setFormError(null);
     const formData = new FormData(e.currentTarget);
     const data = {
       name: formData.get("name") as string,
@@ -28,78 +36,103 @@ export default function PrizeForm({ campaignId, initialData }: { campaignId: str
       redirectUrl: formData.get("redirectUrl") as string,
     };
 
+    const result = initialData
+      ? await updatePrize(initialData.id, data)
+      : await createPrize(campaignId, data);
+
+    if (!result.success) {
+      setFieldErrors(result.fieldErrors ?? {});
+      setFormError(result.error ?? (result.fieldErrors ? "Verifique os dados informados e tente novamente." : null));
+      setLoading(false);
+      return;
+    }
+
     if (initialData) {
-      await updatePrize(initialData.id, data);
       router.push(pathname); // Removes query params
     } else {
-      await createPrize(campaignId, data);
       (e.target as HTMLFormElement).reset();
     }
-    
+
     setLoading(false);
     router.refresh();
   }
 
   return (
-    <form key={initialData?.id || "new"} onSubmit={handleSubmit} className="space-y-4 bg-surface p-6 rounded-lg shadow-sm border border-border">
-      <div>
-        <label className="block text-sm font-medium mb-1 text-foreground">Nome do Prêmio *</label>
-        <input required type="text" name="name" defaultValue={initialData?.name} className="w-full bg-background border border-border text-foreground p-2 rounded focus:ring-1 focus:ring-primary focus:outline-none" />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium mb-1 text-foreground">Descrição</label>
-        <textarea name="description" defaultValue={initialData?.description} className="w-full bg-background border border-border text-foreground p-2 rounded focus:ring-1 focus:ring-primary focus:outline-none"></textarea>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
+    <form key={initialData?.id || "new"} onSubmit={handleSubmit} className="w-full">
+    <Panel>
+      <PanelContent className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1 text-foreground">Probabilidade (0 a 1) *</label>
-          <input required type="number" step="0.0001" min="0" max="1" name="probability" defaultValue={initialData?.probability ?? "0.01"} className="w-full bg-background border border-border text-foreground p-2 rounded focus:ring-1 focus:ring-primary focus:outline-none" />
+          <Label htmlFor="name">Nome do Prêmio *</Label>
+          <Input required type="text" id="name" name="name" defaultValue={initialData?.name} />
+          {fieldErrors.name?.[0] && <p className="text-xs text-danger mt-1">{fieldErrors.name[0]}</p>}
         </div>
+
         <div>
-          <label className="block text-sm font-medium mb-1 text-foreground">Quantidade Total *</label>
-          <input required type="number" min="1" name="quantity" defaultValue={initialData?.quantity ?? "1"} className="w-full bg-background border border-border text-foreground p-2 rounded focus:ring-1 focus:ring-primary focus:outline-none" />
+          <Label htmlFor="description">Descrição</Label>
+          <Textarea id="description" name="description" defaultValue={initialData?.description} />
+          {fieldErrors.description?.[0] && <p className="text-xs text-danger mt-1">{fieldErrors.description[0]}</p>}
         </div>
-      </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="col-span-2">
-          <label className="block text-sm font-medium mb-2 text-foreground">Ícone (Selecione)</label>
-          <IconPicker name="icon" value={initialData?.icon} />
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="probability">Probabilidade (0 a 1) *</Label>
+            <Input required type="number" step="0.0001" min="0" max="1" id="probability" name="probability" defaultValue={initialData?.probability ?? "0.01"} />
+            {fieldErrors.probability?.[0] && <p className="text-xs text-danger mt-1">{fieldErrors.probability[0]}</p>}
+          </div>
+          <div>
+            <Label htmlFor="quantity">Quantidade Total *</Label>
+            <Input required type="number" min="1" id="quantity" name="quantity" defaultValue={initialData?.quantity ?? "1"} />
+            {fieldErrors.quantity?.[0] && <p className="text-xs text-danger mt-1">{fieldErrors.quantity[0]}</p>}
+          </div>
         </div>
-        <div className="col-span-2">
-          <label className="block text-sm font-medium mb-1 text-foreground">URL da Imagem (Opcional)</label>
-          <input type="url" name="imageUrl" defaultValue={initialData?.imageUrl} className="w-full bg-background border border-border text-foreground p-2 rounded focus:ring-1 focus:ring-primary focus:outline-none" />
-        </div>
-      </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium mb-1 text-foreground">Texto do Botão (CTA)</label>
-          <input type="text" name="ctaText" defaultValue={initialData?.ctaText} className="w-full bg-background border border-border text-foreground p-2 rounded focus:ring-1 focus:ring-primary focus:outline-none" />
+        <div className="grid grid-cols-2 gap-4">
+          <div className="col-span-2">
+            <Label>Ícone (Selecione)</Label>
+            <IconPicker name="icon" value={initialData?.icon} />
+          </div>
+          <div className="col-span-2">
+            <Label htmlFor="imageUrl">URL da Imagem (Opcional)</Label>
+            <Input type="url" id="imageUrl" name="imageUrl" defaultValue={initialData?.imageUrl} />
+            {fieldErrors.imageUrl?.[0] && <p className="text-xs text-danger mt-1">{fieldErrors.imageUrl[0]}</p>}
+          </div>
         </div>
-        <div>
-          <label className="block text-sm font-medium mb-1 text-foreground">URL de Redirecionamento</label>
-          <input type="url" name="redirectUrl" defaultValue={initialData?.redirectUrl} className="w-full bg-background border border-border text-foreground p-2 rounded focus:ring-1 focus:ring-primary focus:outline-none" />
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <Label htmlFor="ctaText">Texto do Botão (CTA)</Label>
+            <Input type="text" id="ctaText" name="ctaText" defaultValue={initialData?.ctaText} />
+          </div>
+          <div>
+            <Label htmlFor="redirectUrl">URL de Redirecionamento</Label>
+            <Input type="url" id="redirectUrl" name="redirectUrl" defaultValue={initialData?.redirectUrl} />
+            {fieldErrors.redirectUrl?.[0] && <p className="text-xs text-danger mt-1">{fieldErrors.redirectUrl[0]}</p>}
+          </div>
         </div>
-      </div>
 
-      <div className="flex items-center gap-2 pt-2">
-        <input type="checkbox" id="active" name="active" defaultChecked={initialData ? initialData.active : true} className="w-4 h-4 rounded text-primary focus:ring-primary" />
-        <label htmlFor="active" className="text-sm font-medium text-foreground">Prêmio Ativo</label>
-      </div>
+        <div className="flex items-center gap-2 pt-2">
+          <input type="checkbox" id="active" name="active" defaultChecked={initialData ? initialData.active : true} className="w-4 h-4 rounded text-primary focus:ring-primary" />
+          <Label htmlFor="active" className="mb-0">Prêmio Ativo</Label>
+        </div>
 
-      <div className="pt-2 flex gap-2">
-        {initialData && (
-          <Button variant="secondary" type="button" onClick={() => router.push(pathname)} className="w-full">
-            Cancelar
-          </Button>
+        {formError && (
+          <div className="p-3 bg-danger/10 border border-danger/20 rounded-md">
+            <p className="text-sm text-danger font-medium">{formError}</p>
+          </div>
         )}
-        <Button disabled={loading} type="submit" className="w-full">
-          {loading ? "Salvando..." : (initialData ? "Atualizar Prêmio" : "Salvar Prêmio")}
-        </Button>
-      </div>
+
+        <div className="pt-2 flex gap-2">
+          {initialData && (
+            <Button variant="secondary" type="button" onClick={() => router.push(pathname)} className="w-full">
+              Cancelar
+            </Button>
+          )}
+          <Button disabled={loading} type="submit" className="w-full">
+            {loading ? "Salvando..." : (initialData ? "Atualizar Prêmio" : "Salvar Prêmio")}
+          </Button>
+        </div>
+      </PanelContent>
+    </Panel>
     </form>
   );
 }

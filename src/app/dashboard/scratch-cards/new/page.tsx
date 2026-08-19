@@ -20,6 +20,8 @@ export default function NewScratchCardWizard() {
   const [template, setTemplate] = useState("");
   const [name, setName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     getClients().then(setClients);
@@ -39,11 +41,25 @@ export default function NewScratchCardWizard() {
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
+    setNameError(null);
+    setFormError(null);
     try {
-      const scratchCard = await createScratchCard({ name, clientId, campaignId, template });
-      router.push(`/dashboard/scratch-cards/${scratchCard.id}/edit`);
+      const result = await createScratchCard({ name, clientId, campaignId, template });
+      if (!result.success) {
+        if (result.fieldErrors?.name?.[0]) {
+          setNameError(result.fieldErrors.name[0]);
+        } else if (result.fieldErrors) {
+          setFormError("Verifique os dados informados e tente novamente.");
+        } else {
+          setFormError(result.error ?? "Não foi possível criar a raspadinha.");
+        }
+        setIsSubmitting(false);
+        return;
+      }
+      router.push(`/dashboard/scratch-cards/${result.scratchCard.id}/edit`);
     } catch (error) {
       console.error(error);
+      setFormError("Não foi possível criar a raspadinha. Tente novamente.");
       setIsSubmitting(false);
     }
   };
@@ -157,13 +173,26 @@ export default function NewScratchCardWizard() {
               <h2 className="text-xl font-semibold">4. Nome da Raspadinha</h2>
               <div className="space-y-2">
                 <Label htmlFor="name">Nome interno</Label>
-                <Input 
-                  id="name" 
-                  value={name} 
-                  onChange={(e) => setName(e.target.value)} 
+                <Input
+                  id="name"
+                  value={name}
+                  onChange={(e) => {
+                    setName(e.target.value);
+                    if (nameError) setNameError(null);
+                  }}
                   placeholder="Ex: Raspadinha Black Friday"
+                  aria-invalid={nameError ? true : undefined}
                 />
+                {nameError && (
+                  <p className="text-xs text-danger">{nameError}</p>
+                )}
               </div>
+            </div>
+          )}
+
+          {formError && (
+            <div className="mt-4 p-3 bg-danger/10 border border-danger/20 rounded-md">
+              <p className="text-sm text-danger font-medium">{formError}</p>
             </div>
           )}
         </PanelContent>
