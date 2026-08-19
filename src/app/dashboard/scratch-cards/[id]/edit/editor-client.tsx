@@ -322,13 +322,13 @@ export function ScratchCardEditorClient({ scratchCard, prizes }: { scratchCard: 
         </div>
 
         {/* Center Column: Preview */}
-        <div className="lg:col-span-8 flex flex-col items-center justify-center bg-surface-elevated border border-border rounded-lg relative overflow-hidden">
-          <div className="absolute top-4 left-4 bg-background px-3 py-1 rounded-full text-xs font-medium text-foreground-muted shadow-sm flex items-center gap-2">
-            Preview Interativo
+        <div className="lg:col-span-8 flex flex-col min-h-0 bg-surface-elevated border border-border rounded-lg overflow-hidden">
+          <div className="shrink-0 flex items-center justify-between gap-2 px-4 py-2.5 border-b border-border bg-background">
+            <span className="text-xs font-medium text-foreground-muted">Preview Interativo</span>
             <Button size="sm" variant="secondary" className="h-6 text-xs px-2" onClick={handleTestPlay}>Simular Vitória</Button>
           </div>
-          
-          <div className="w-full flex justify-center items-center h-full max-h-[800px] overflow-auto">
+
+          <div className="flex-1 min-h-0 w-full flex justify-center overflow-y-auto p-4">
              <ScratchRenderer
                 eyebrow="Preview"
                 title={coverText}
@@ -340,7 +340,7 @@ export function ScratchCardEditorClient({ scratchCard, prizes }: { scratchCard: 
                 externalBackground={backgroundColor}
                 borderColor="#e2e8f0"
                 borderRadius={12}
-                maxWidth={400}
+                maxWidth={340}
                 gridSize="3x3"
                 gridGap={8}
                 maskColor={cardColor}
