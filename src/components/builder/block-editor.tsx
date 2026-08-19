@@ -59,7 +59,10 @@ function LinkField({
           ))}
         </select>
       ) : (
-        <Input type="url" placeholder="https://" value={value} onChange={(e) => onChange(e.target.value)} className="bg-background" />
+        // type="text" (não "url"): alguns links legítimos aqui são âncoras
+        // internas como "#oferta", que a validação nativa de <input type="url">
+        // rejeita como inválidas e travaria o salvamento do formulário.
+        <Input type="text" placeholder="https:// ou #ancora" value={value} onChange={(e) => onChange(e.target.value)} className="bg-background" />
       )}
     </div>
   );
@@ -189,13 +192,18 @@ export function BlockEditor({ blockId, blockType, clientId, campaignId, config, 
       <input type="hidden" name="config" value={JSON.stringify(currentConfig)} />
 
       <div className="space-y-5">
-        {registryEntry.fields.map(field => {
+        {registryEntry.fields.map((field, index) => {
           const value = currentConfig[field.key];
-          
+          const showGroupHeader = field.group !== registryEntry.fields[index - 1]?.group;
+
           return (
-            <div key={field.key} className="space-y-2">
+            <div key={field.key}>
+              {showGroupHeader && field.group && (
+                <h4 className="text-sm font-bold text-foreground pt-2 pb-1 border-b border-border mb-3">{field.group}</h4>
+              )}
+              <div className="space-y-2 mb-5">
               <Label className="text-xs uppercase tracking-wide text-foreground-muted font-bold">{field.label}</Label>
-              
+
               {field.type === "text" && (
                 <Input 
                   value={value as string || ""} 
@@ -265,13 +273,14 @@ export function BlockEditor({ blockId, blockType, clientId, campaignId, config, 
                 </select>
               )}
               {(field.type as string) === "datetime" && (
-                <Input 
+                <Input
                   type="datetime-local"
-                  value={value as string || ""} 
+                  value={value as string || ""}
                   onChange={(e) => setCurrentConfig({ ...currentConfig, [field.key]: e.target.value })}
                   className="bg-background"
                 />
               )}
+              </div>
             </div>
           );
         })}

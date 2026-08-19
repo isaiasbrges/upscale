@@ -13,6 +13,8 @@ export type BlockField = {
   label: string;
   type: FieldType;
   options?: { label: string; value: string }[];
+  /** Agrupa o campo sob um cabeçalho no editor (ex.: "Raspadinha", "Oferta"). Opcional — sem grupo, os campos aparecem numa lista só. */
+  group?: string;
 };
 
 export type BlockDefinition<T = Record<string, unknown>> = {
