@@ -12,9 +12,8 @@ import {
   updateFunnelStepAction,
   deleteFunnelStepAction,
   setFunnelStepStatusAction,
-  FUNNEL_STEP_TYPE_LABELS,
-  type FunnelStepType,
 } from "@/actions/funnel-steps";
+import { FUNNEL_STEP_TYPE_LABELS, type FunnelStepType } from "@/lib/funnel-step-types";
 import { FUNNEL_STEP_TYPE_ICONS } from "./step-icons";
 import type { StepMetrics } from "@/lib/funnel-metrics";
 
