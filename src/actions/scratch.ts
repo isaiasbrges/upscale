@@ -91,8 +91,12 @@ export async function playScratchCard(
       .map((prize) => prize.icon || prize.imageUrl)
       .filter((icon): icon is string => Boolean(icon));
     const pool = losingIcons.length > 0 ? losingIcons : fallbackIcons;
-    const winnerIcon = configuredWinner?.icon || configuredWinner?.imageUrl;
-    const grid = won && configuredWinner && winnerIcon
+    // Prêmios sem icon/imageUrl cadastrado ainda precisam de um símbolo para
+    // desenhar a grade vencedora — sem isso a jogada era registrada como WIN
+    // no banco (estoque decrementado) mas a grade renderizava um padrão de
+    // derrota, já que não havia ícone nenhum para repetir 3x.
+    const winnerIcon = configuredWinner?.icon || configuredWinner?.imageUrl || "🏆";
+    const grid = won && configuredWinner
       ? shuffle([
           winnerIcon, winnerIcon, winnerIcon,
           ...Array.from({ length: 6 }, () => pick(pool)),
