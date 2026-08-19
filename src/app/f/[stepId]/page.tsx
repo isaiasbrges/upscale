@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getNextFunnelStepPath } from "@/lib/funnel-public";
+import { personalizeConfig } from "@/lib/personalization";
 import { PublicScratchPlay } from "@/components/blocks/scratch/public-scratch-play";
 import { BlockRenderer } from "@/components/blocks/block-renderer";
 import type { BlockType } from "@/lib/blocks/registry";
@@ -13,15 +14,22 @@ import type { BlockType } from "@/lib/blocks/registry";
  * reordenar ou trocar o conteúdo de uma etapa no funil não exige editar
  * link nenhum manualmente.
  */
-export default async function FunnelStepPage({ params }: { params: Promise<{ stepId: string }> }) {
+export default async function FunnelStepPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ stepId: string }>;
+  searchParams: Promise<{ ref?: string }>;
+}) {
   const { stepId } = await params;
+  const { ref } = await searchParams;
 
   const step = await prisma.funnelStep.findUnique({
     where: { id: stepId },
     include: {
       page: {
         include: {
-          campaign: { select: { status: true } },
+          campaign: { select: { status: true, clientId: true } },
           blocks: { where: { enabled: true }, orderBy: { position: "asc" } },
         },
       },
@@ -36,10 +44,27 @@ export default async function FunnelStepPage({ params }: { params: Promise<{ ste
   if (step.type === "PAGE") {
     const page = step.page;
     if (!page || page.campaign.status !== "PUBLISHED") notFound();
+
+    // Se a URL trouxer ?ref=<id-do-pedido>, busca o nome do comprador salvo
+    // pelo webhook de compra (ver /api/webhooks/purchase/[clientId]) e
+    // personaliza {{nome}} nos blocos — usado no upsell pós-checkout.
+    let buyerName: string | null = null;
+    if (ref) {
+      const purchase = await prisma.purchaseEvent.findUnique({
+        where: { clientId_referenceId: { clientId: page.campaign.clientId, referenceId: ref } },
+        select: { buyerName: true },
+      });
+      buyerName = purchase?.buyerName ?? null;
+    }
+
     return (
       <main className="min-h-dvh bg-black">
         {page.blocks.map((block) => (
-          <BlockRenderer key={block.id} type={block.type as BlockType} config={block.config as Record<string, unknown>} />
+          <BlockRenderer
+            key={block.id}
+            type={block.type as BlockType}
+            config={personalizeConfig(block.config as Record<string, unknown>, buyerName)}
+          />
         ))}
       </main>
     );
