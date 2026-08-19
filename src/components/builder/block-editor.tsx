@@ -1,12 +1,69 @@
 "use client";
 
-import { useState, useActionState } from "react";
+import { useState, useEffect, useActionState } from "react";
 import { updateBlockAction, deleteBlockAction } from "@/actions/blocks";
+import { getFunnelStepsForCampaign } from "@/actions/funnel-steps";
+import { FUNNEL_STEP_TYPE_LABELS, type FunnelStepType } from "@/lib/funnel-step-types";
 import { blockRegistry, type BlockType } from "@/lib/blocks/registry";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+
+type FunnelStepOption = { id: string; name: string; type: string };
+
+/** Campo de link que alterna entre "URL externa" e "Etapa do funil" (grava sempre uma string em config). */
+function LinkField({
+  value,
+  onChange,
+  funnelSteps,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  funnelSteps: FunnelStepOption[];
+}) {
+  const [mode, setMode] = useState<"url" | "funnel-step">(value.startsWith("/f/") ? "funnel-step" : "url");
+
+  return (
+    <div className="space-y-2">
+      {funnelSteps.length > 0 && (
+        <div className="flex gap-1 rounded-md bg-background p-1 border border-border w-fit">
+          <button
+            type="button"
+            onClick={() => setMode("url")}
+            className={`px-2.5 py-1 text-xs rounded ${mode === "url" ? "bg-primary text-primary-foreground" : "text-foreground-muted"}`}
+          >
+            URL externa
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode("funnel-step")}
+            className={`px-2.5 py-1 text-xs rounded ${mode === "funnel-step" ? "bg-primary text-primary-foreground" : "text-foreground-muted"}`}
+          >
+            Etapa do funil
+          </button>
+        </div>
+      )}
+
+      {mode === "funnel-step" && funnelSteps.length > 0 ? (
+        <select
+          value={value.startsWith("/f/") ? value : ""}
+          onChange={(e) => onChange(e.target.value)}
+          className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+        >
+          <option value="">Selecione uma etapa</option>
+          {funnelSteps.map((step) => (
+            <option key={step.id} value={`/f/${step.id}`}>
+              {step.name} — {FUNNEL_STEP_TYPE_LABELS[step.type as FunnelStepType] ?? step.type}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <Input type="url" placeholder="https://" value={value} onChange={(e) => onChange(e.target.value)} className="bg-background" />
+      )}
+    </div>
+  );
+}
 
 // Sub-component for FAQ items
 function FaqItemsEditor({ items, onChange }: { items: any[], onChange: (items: any[]) => void }) {
@@ -103,7 +160,12 @@ type BlockEditorProps = {
 
 export function BlockEditor({ blockId, blockType, clientId, campaignId, config, onUpdate }: BlockEditorProps) {
   const [currentConfig, setCurrentConfig] = useState<Record<string, unknown>>(config);
-  
+  const [funnelSteps, setFunnelSteps] = useState<FunnelStepOption[]>([]);
+
+  useEffect(() => {
+    getFunnelStepsForCampaign(campaignId).then(setFunnelSteps).catch(() => setFunnelSteps([]));
+  }, [campaignId]);
+
   const updateAction = updateBlockAction.bind(null, clientId, campaignId);
   const [state, formAction, isPending] = useActionState(updateAction, null);
 
@@ -149,12 +211,10 @@ export function BlockEditor({ blockId, blockType, clientId, campaignId, config, 
                 />
               )}
               {field.type === "url" && (
-                <Input 
-                  type="url"
-                  placeholder="https://"
-                  value={value as string || ""} 
-                  onChange={(e) => setCurrentConfig({ ...currentConfig, [field.key]: e.target.value })}
-                  className="bg-background"
+                <LinkField
+                  value={(value as string) || ""}
+                  onChange={(next) => setCurrentConfig({ ...currentConfig, [field.key]: next })}
+                  funnelSteps={funnelSteps}
                 />
               )}
               {field.type === "color" && (

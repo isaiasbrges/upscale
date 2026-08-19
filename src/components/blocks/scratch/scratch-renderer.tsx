@@ -45,7 +45,18 @@ const soundConfirm = () => {
   tone(990, 0.22, 'sine', 0.035, 0.1);
 };
 
-export const ScratchRenderer: React.FC<ScratchBlockConfig & { gridItems?: string[] }> = ({
+type ResultPrize = { name: string; description?: string | null; imageUrl?: string | null } | null;
+
+export const ScratchRenderer: React.FC<
+  ScratchBlockConfig & {
+    gridItems?: string[];
+    /** Quando definido, ativa o modo "resultado real" (raspadinha pública ligada a um ScratchCard de verdade). */
+    resultWon?: boolean;
+    resultPrize?: ResultPrize;
+    /** Link para a próxima etapa do funil, exibido como CTA na tela de resultado. */
+    continueHref?: string | null;
+  }
+> = ({
   eyebrow,
   title,
   subtitle,
@@ -65,7 +76,11 @@ export const ScratchRenderer: React.FC<ScratchBlockConfig & { gridItems?: string
   maskOpacity,
   previewMode = false,
   gridItems,
+  resultWon,
+  resultPrize,
+  continueHref,
 }) => {
+  const hasRealResult = resultWon !== undefined;
   const cols = parseInt(gridSize.charAt(0)) || 3;
   const rows = parseInt(gridSize.charAt(2)) || 3;
   const totalCells = cols * rows;
@@ -217,12 +232,12 @@ export const ScratchRenderer: React.FC<ScratchBlockConfig & { gridItems?: string
           </div>
         )}
 
-        {/* WIN SCREEN MODAL */}
-        {isWinScreenVisible && (
+        {/* RESULT MODAL — legado (bloco decorativo, sem resultado real) sempre mostra "ganhou" */}
+        {isWinScreenVisible && !hasRealResult && (
           <div className="fixed inset-0 z-[10000] bg-[radial-gradient(ellipse_at_50%_25%,#081600,#080808_65%)] flex items-center justify-center p-5">
             <div className="max-w-[360px] w-full text-center relative">
               <div className="bg-gradient-to-br from-[#0A1200] to-[#080808] rounded-[22px] p-6 relative overflow-hidden">
-                <div 
+                <div
                   className="absolute inset-0 rounded-[22px] p-[2px] opacity-60"
                   style={{
                     background: "linear-gradient(135deg, #19A85A, #FFD600, #0B6E3A, #FFD600)",
@@ -233,7 +248,7 @@ export const ScratchRenderer: React.FC<ScratchBlockConfig & { gridItems?: string
                     maskComposite: "exclude"
                   }}
                 />
-                
+
                 <span className="block text-[72px] mb-3 drop-shadow-[0_0_24px_rgba(255,214,0,0.7)]" style={{ animation: "iconPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards" }}>
                   <Rocket className="w-20 h-20 mx-auto text-yellow-400 fill-yellow-400" />
                 </span>
@@ -246,10 +261,10 @@ export const ScratchRenderer: React.FC<ScratchBlockConfig & { gridItems?: string
                   Sua compra liberou uma vantagem para <em className="text-[#FFD600] not-italic font-bold">multiplicar suas chances</em> nos 20 veículos 0KM e na Casa 100% Mobiliada.
                 </p>
 
-                <button 
+                <button
                   onClick={handleCloseWinScreen}
                   className="block w-full border-none cursor-pointer text-white font-sans text-[18px] font-bold uppercase py-4 px-5 rounded-xl relative overflow-hidden"
-                  style={{ 
+                  style={{
                     background: "linear-gradient(135deg, #00E028, #008516)",
                     animation: "glGreen 2s ease-in-out infinite"
                   }}
@@ -257,6 +272,89 @@ export const ScratchRenderer: React.FC<ScratchBlockConfig & { gridItems?: string
                   🔓 VER O QUE EU DESBLOQUEEI
                 </button>
                 <div className="text-[11px] text-[#555] mt-3">Vantagem exclusiva da etapa pós-compra</div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* RESULT MODAL — raspadinha real (ScratchCard), usa o resultado de fato */}
+        {isWinScreenVisible && hasRealResult && resultWon && (
+          <div className="fixed inset-0 z-[10000] bg-[radial-gradient(ellipse_at_50%_25%,#081600,#080808_65%)] flex items-center justify-center p-5">
+            <div className="max-w-[360px] w-full text-center relative">
+              <div className="bg-gradient-to-br from-[#0A1200] to-[#080808] rounded-[22px] p-6 relative overflow-hidden">
+                <div
+                  className="absolute inset-0 rounded-[22px] p-[2px] opacity-60"
+                  style={{
+                    background: "linear-gradient(135deg, #19A85A, #FFD600, #0B6E3A, #FFD600)",
+                    backgroundSize: "300% auto",
+                    animation: "borderSpin 3s linear infinite",
+                    WebkitMask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
+                    WebkitMaskComposite: "xor",
+                    maskComposite: "exclude"
+                  }}
+                />
+                {resultPrize?.imageUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={resultPrize.imageUrl} alt={resultPrize.name} className="w-20 h-20 mx-auto mb-3 object-contain drop-shadow-[0_0_24px_rgba(255,214,0,0.5)]" />
+                ) : (
+                  <Trophy className="w-16 h-16 mx-auto mb-3 text-yellow-400 drop-shadow-[0_0_24px_rgba(255,214,0,0.7)]" />
+                )}
+                <p className="font-sans text-[10px] font-bold uppercase tracking-[2.4px] text-[#19A85A] mb-2">{winText || "Você ganhou!"}</p>
+                <h2 className="font-sans text-[28px] font-bold uppercase text-[#FFD600] leading-[1.1] mb-2 drop-shadow-[0_0_30px_rgba(255,214,0,0.4)]">
+                  {resultPrize?.name ?? "Prêmio liberado"}
+                </h2>
+                {resultPrize?.description && (
+                  <p className="text-[14px] text-[#c8c8c8] leading-[1.55] max-w-[290px] mx-auto mb-6">{resultPrize.description}</p>
+                )}
+                {continueHref ? (
+                  <a
+                    href={continueHref}
+                    className="block w-full border-none cursor-pointer text-white font-sans text-[18px] font-bold uppercase py-4 px-5 rounded-xl relative overflow-hidden text-center"
+                    style={{ background: "linear-gradient(135deg, #00E028, #008516)", animation: "glGreen 2s ease-in-out infinite" }}
+                  >
+                    Continuar
+                  </a>
+                ) : (
+                  <button
+                    onClick={handleCloseWinScreen}
+                    className="block w-full border-none cursor-pointer text-white font-sans text-[18px] font-bold uppercase py-4 px-5 rounded-xl relative overflow-hidden"
+                    style={{ background: "linear-gradient(135deg, #00E028, #008516)", animation: "glGreen 2s ease-in-out infinite" }}
+                  >
+                    Continuar
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* RESULT MODAL — raspadinha real, resultado negativo */}
+        {isWinScreenVisible && hasRealResult && !resultWon && (
+          <div className="fixed inset-0 z-[10000] bg-[radial-gradient(ellipse_at_50%_25%,#080808_0%,#050505_65%)] flex items-center justify-center p-5">
+            <div className="max-w-[360px] w-full text-center relative">
+              <div className="bg-gradient-to-br from-[#0A0A0A] to-[#080808] rounded-[22px] p-6 border border-white/10">
+                <X className="w-16 h-16 mx-auto mb-3 text-gray-500" />
+                <h2 className="font-sans text-[24px] font-bold text-white leading-[1.1] mb-2">
+                  {loseText || "Não foi dessa vez"}
+                </h2>
+                <p className="text-[14px] text-[#8a8a8a] leading-[1.55] max-w-[290px] mx-auto mb-6">
+                  Fique de olho nas próximas oportunidades.
+                </p>
+                {continueHref ? (
+                  <a
+                    href={continueHref}
+                    className="block w-full border border-white/15 cursor-pointer text-white font-sans text-[15px] font-bold uppercase py-3.5 px-5 rounded-xl text-center hover:bg-white/5 transition-colors"
+                  >
+                    Continuar
+                  </a>
+                ) : (
+                  <button
+                    onClick={handleCloseWinScreen}
+                    className="block w-full border border-white/15 cursor-pointer text-white font-sans text-[15px] font-bold uppercase py-3.5 px-5 rounded-xl hover:bg-white/5 transition-colors"
+                  >
+                    Continuar
+                  </button>
+                )}
               </div>
             </div>
           </div>
