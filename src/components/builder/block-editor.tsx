@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useActionState } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { updateBlockAction, deleteBlockAction } from "@/actions/blocks";
 import { getFunnelStepsForCampaign } from "@/actions/funnel-steps";
 import { FUNNEL_STEP_TYPE_LABELS, type FunnelStepType } from "@/lib/funnel-step-types";
@@ -158,25 +158,79 @@ type BlockEditorProps = {
   clientId: string;
   campaignId: string;
   config: Record<string, unknown>;
-  onUpdate?: () => void;
+  onConfigChange?: (config: Record<string, unknown>) => void;
+  onDeleted?: () => void;
 };
 
-export function BlockEditor({ blockId, blockType, clientId, campaignId, config, onUpdate }: BlockEditorProps) {
+type SaveStatus = "idle" | "saving" | "saved" | "error";
+
+export function BlockEditor({ blockId, blockType, clientId, campaignId, config, onConfigChange, onDeleted }: BlockEditorProps) {
   const [currentConfig, setCurrentConfig] = useState<Record<string, unknown>>(config);
   const [funnelSteps, setFunnelSteps] = useState<FunnelStepOption[]>([]);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     getFunnelStepsForCampaign(campaignId).then(setFunnelSteps).catch(() => setFunnelSteps([]));
   }, [campaignId]);
 
-  const updateAction = updateBlockAction.bind(null, clientId, campaignId);
-  const [state, formAction, isPending] = useActionState(updateAction, null);
+  // Limpa o debounce pendente ao trocar/desmontar, pra não disparar save
+  // de um bloco que já saiu de tela.
+  useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
+  }, []);
+
+  const persist = useCallback(
+    async (nextConfig: Record<string, unknown>) => {
+      setSaveStatus("saving");
+      setSaveError(null);
+      const formData = new FormData();
+      formData.set("blockId", blockId);
+      formData.set("blockType", blockType);
+      formData.set("config", JSON.stringify(nextConfig));
+      try {
+        const result = await updateBlockAction(clientId, campaignId, null, formData);
+        if (result.error) {
+          setSaveStatus("error");
+          setSaveError(result.error);
+          return;
+        }
+        setSaveStatus("saved");
+      } catch (err: any) {
+        setSaveStatus("error");
+        setSaveError(err?.message ?? "Não foi possível salvar");
+      }
+    },
+    [blockId, blockType, clientId, campaignId],
+  );
+
+  // Edição dinâmica: cada alteração já aparece no preview instantaneamente
+  // (onConfigChange) e é salva sozinha após uma pequena pausa de digitação
+  // (debounce), sem precisar clicar em "Salvar".
+  const handleFieldChange = (key: string, value: unknown) => {
+    const next = { ...currentConfig, [key]: value };
+    setCurrentConfig(next);
+    onConfigChange?.(next);
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(() => persist(next), 700);
+  };
+
+  const handleItemsChange = (items: unknown[]) => {
+    const next = { ...currentConfig, items };
+    setCurrentConfig(next);
+    onConfigChange?.(next);
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(() => persist(next), 700);
+  };
 
   const handleDelete = async () => {
     if (!confirm("Tem certeza que deseja remover este bloco?")) return;
     try {
       await deleteBlockAction(clientId, campaignId, blockId);
-      window.location.reload();
+      onDeleted?.();
     } catch (err) {
       console.error(err);
     }
@@ -186,11 +240,7 @@ export function BlockEditor({ blockId, blockType, clientId, campaignId, config, 
   if (!registryEntry) return null;
 
   return (
-    <form action={formAction} className="space-y-6">
-      <input type="hidden" name="blockId" value={blockId} />
-      <input type="hidden" name="blockType" value={blockType} />
-      <input type="hidden" name="config" value={JSON.stringify(currentConfig)} />
-
+    <div className="space-y-6">
       <div className="space-y-5">
         {registryEntry.fields.map((field, index) => {
           const value = currentConfig[field.key];
@@ -205,57 +255,57 @@ export function BlockEditor({ blockId, blockType, clientId, campaignId, config, 
               <Label className="text-xs uppercase tracking-wide text-foreground-muted font-bold">{field.label}</Label>
 
               {field.type === "text" && (
-                <Input 
-                  value={value as string || ""} 
-                  onChange={(e) => setCurrentConfig({ ...currentConfig, [field.key]: e.target.value })}
+                <Input
+                  value={value as string || ""}
+                  onChange={(e) => handleFieldChange(field.key, e.target.value)}
                   className="bg-background"
                 />
               )}
               {field.type === "textarea" && (
-                <Textarea 
-                  value={value as string || ""} 
-                  onChange={(e) => setCurrentConfig({ ...currentConfig, [field.key]: e.target.value })}
+                <Textarea
+                  value={value as string || ""}
+                  onChange={(e) => handleFieldChange(field.key, e.target.value)}
                   className="bg-background min-h-[100px]"
                 />
               )}
               {field.type === "url" && (
                 <LinkField
                   value={(value as string) || ""}
-                  onChange={(next) => setCurrentConfig({ ...currentConfig, [field.key]: next })}
+                  onChange={(next) => handleFieldChange(field.key, next)}
                   funnelSteps={funnelSteps}
                 />
               )}
               {field.type === "color" && (
                 <div className="flex items-center space-x-3">
                   <div className="relative h-10 w-10 overflow-hidden rounded-md border border-border shadow-sm">
-                    <input 
+                    <input
                       type="color"
-                      value={value as string || "#000000"} 
-                      onChange={(e) => setCurrentConfig({ ...currentConfig, [field.key]: e.target.value })}
+                      value={value as string || "#000000"}
+                      onChange={(e) => handleFieldChange(field.key, e.target.value)}
                       className="absolute -top-2 -left-2 h-16 w-16 cursor-pointer"
                     />
                   </div>
-                  <Input 
-                    value={value as string || ""} 
-                    onChange={(e) => setCurrentConfig({ ...currentConfig, [field.key]: e.target.value })}
+                  <Input
+                    value={value as string || ""}
+                    onChange={(e) => handleFieldChange(field.key, e.target.value)}
                     className="flex-1 bg-background uppercase font-mono"
                   />
                 </div>
               )}
               {field.type === "number" && (
-                <Input 
+                <Input
                   type="number"
-                  value={value as number || 0} 
-                  onChange={(e) => setCurrentConfig({ ...currentConfig, [field.key]: parseFloat(e.target.value) })}
+                  value={value as number || 0}
+                  onChange={(e) => handleFieldChange(field.key, parseFloat(e.target.value))}
                   className="bg-background"
                 />
               )}
               {field.type === "toggle" && (
                 <div className="flex items-center space-x-2">
-                  <input 
+                  <input
                     type="checkbox"
-                    checked={value as boolean || false} 
-                    onChange={(e) => setCurrentConfig({ ...currentConfig, [field.key]: e.target.checked })}
+                    checked={value as boolean || false}
+                    onChange={(e) => handleFieldChange(field.key, e.target.checked)}
                     className="h-4 w-4 rounded border-border bg-background text-primary focus:ring-primary/50"
                   />
                   <span className="text-sm text-foreground">Ativado</span>
@@ -264,7 +314,7 @@ export function BlockEditor({ blockId, blockType, clientId, campaignId, config, 
               {field.type === "select" && field.options && (
                 <select
                   value={value as string || ""}
-                  onChange={(e) => setCurrentConfig({ ...currentConfig, [field.key]: e.target.value })}
+                  onChange={(e) => handleFieldChange(field.key, e.target.value)}
                   className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
                 >
                   {field.options.map(opt => (
@@ -276,7 +326,7 @@ export function BlockEditor({ blockId, blockType, clientId, campaignId, config, 
                 <Input
                   type="datetime-local"
                   value={value as string || ""}
-                  onChange={(e) => setCurrentConfig({ ...currentConfig, [field.key]: e.target.value })}
+                  onChange={(e) => handleFieldChange(field.key, e.target.value)}
                   className="bg-background"
                 />
               )}
@@ -288,9 +338,9 @@ export function BlockEditor({ blockId, blockType, clientId, campaignId, config, 
         {blockType === "faq" && (
           <div className="space-y-2 mt-4 pt-4 border-t border-border">
             <Label className="text-xs uppercase tracking-wide text-foreground-muted font-bold">Itens de FAQ</Label>
-            <FaqItemsEditor 
-              items={currentConfig.items as any[] || []} 
-              onChange={(items) => setCurrentConfig({ ...currentConfig, items })}
+            <FaqItemsEditor
+              items={currentConfig.items as any[] || []}
+              onChange={handleItemsChange}
             />
           </div>
         )}
@@ -298,25 +348,40 @@ export function BlockEditor({ blockId, blockType, clientId, campaignId, config, 
         {blockType === "prizes" && (
           <div className="space-y-2 mt-4 pt-4 border-t border-border">
             <Label className="text-xs uppercase tracking-wide text-foreground-muted font-bold">Lista de Prêmios</Label>
-            <PrizeItemsEditor 
-              items={currentConfig.items as any[] || []} 
-              onChange={(items) => setCurrentConfig({ ...currentConfig, items })}
+            <PrizeItemsEditor
+              items={currentConfig.items as any[] || []}
+              onChange={handleItemsChange}
             />
           </div>
         )}
       </div>
 
-      {state?.error && <p className="text-danger text-sm mt-2">{state.error}</p>}
-      {state?.success && <p className="text-success text-sm mt-2">Salvo com sucesso!</p>}
+      <div className="flex items-center gap-2 text-xs mt-2">
+        {saveStatus === "saving" && (
+          <span className="flex items-center gap-1.5 text-foreground-muted">
+            <span className="h-1.5 w-1.5 rounded-full bg-foreground-muted animate-pulse" />
+            Salvando...
+          </span>
+        )}
+        {saveStatus === "saved" && (
+          <span className="flex items-center gap-1.5 text-success">
+            <span className="h-1.5 w-1.5 rounded-full bg-success" />
+            Salvo
+          </span>
+        )}
+        {saveStatus === "error" && (
+          <span className="text-danger">{saveError ?? "Erro ao salvar"}</span>
+        )}
+      </div>
 
-      <div className="flex flex-col gap-3 mt-8 pt-4 border-t border-border">
-        <Button type="submit" disabled={isPending} className="w-full">
-          {isPending ? "Salvando..." : "Salvar Propriedades"}
+      <div className="flex flex-col gap-3 mt-4 pt-4 border-t border-border">
+        <Button type="button" variant="secondary" onClick={() => persist(currentConfig)} className="w-full">
+          Salvar agora
         </Button>
         <Button type="button" variant="danger" onClick={handleDelete} className="w-full">
           Remover bloco
         </Button>
       </div>
-    </form>
+    </div>
   );
 }

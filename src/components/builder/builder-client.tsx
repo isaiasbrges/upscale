@@ -6,8 +6,9 @@ import { BlockEditor } from "./block-editor";
 import { AddBlockPanel } from "./add-block-panel";
 import { blockRegistry, type BlockType } from "@/lib/blocks/registry";
 import { cn } from "@/lib/utils";
-import { Layers, Plus, Monitor, Smartphone, Copy, Check, Settings2 } from "lucide-react";
+import { Layers, Plus, Monitor, Smartphone, Copy, Check, Settings2, GripVertical } from "lucide-react";
 import { setCampaignPublishedAction } from "@/actions/campaigns";
+import { reorderBlocksAction, type CreatedBlock } from "@/actions/blocks";
 
 type Block = {
   id: string;
@@ -25,17 +26,58 @@ type BuilderClientProps = {
   clientSlug: string;
 };
 
-export function BuilderClient({ clientId, campaignId, pageId, blocks, campaignStatus, campaignSlug, clientSlug }: BuilderClientProps) {
+export function BuilderClient({ clientId, campaignId, pageId, blocks: initialBlocks, campaignStatus, campaignSlug, clientSlug }: BuilderClientProps) {
+  const [blocks, setBlocks] = useState<Block[]>(initialBlocks);
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(
-    blocks.length > 0 ? blocks[0].id : null
+    initialBlocks.length > 0 ? initialBlocks[0].id : null
   );
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
   const [leftTab, setLeftTab] = useState<"layers" | "add">("layers");
   const [status, setStatus] = useState(campaignStatus);
   const [isToggling, setIsToggling] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [dragOverId, setDragOverId] = useState<string | null>(null);
 
   const selectedBlock = blocks.find(b => b.id === selectedBlockId);
+
+  function handleConfigChange(blockId: string, config: Record<string, unknown>) {
+    setBlocks((prev) => prev.map((b) => (b.id === blockId ? { ...b, config } : b)));
+  }
+
+  function handleBlockAdded(block: CreatedBlock) {
+    setBlocks((prev) => [...prev, block]);
+    setSelectedBlockId(block.id);
+    setLeftTab("layers");
+  }
+
+  function handleBlockDeleted(blockId: string) {
+    setBlocks((prev) => {
+      const next = prev.filter((b) => b.id !== blockId);
+      setSelectedBlockId(next.length > 0 ? next[0].id : null);
+      return next;
+    });
+  }
+
+  function handleDrop(targetId: string) {
+    if (!draggedId || draggedId === targetId) {
+      setDraggedId(null);
+      setDragOverId(null);
+      return;
+    }
+    setBlocks((prev) => {
+      const fromIndex = prev.findIndex((b) => b.id === draggedId);
+      const toIndex = prev.findIndex((b) => b.id === targetId);
+      if (fromIndex === -1 || toIndex === -1) return prev;
+      const next = [...prev];
+      const [moved] = next.splice(fromIndex, 1);
+      next.splice(toIndex, 0, moved);
+      reorderBlocksAction(clientId, campaignId, pageId, next.map((b) => b.id)).catch((err) => console.error(err));
+      return next;
+    });
+    setDraggedId(null);
+    setDragOverId(null);
+  }
 
   async function handleTogglePublish() {
     const next = status === "PUBLISHED" ? "DRAFT" : "PUBLISHED";
@@ -87,26 +129,57 @@ export function BuilderClient({ clientId, campaignId, pageId, blocks, campaignSt
                 const entry = blockRegistry[block.type as BlockType];
                 if (!entry) return null;
                 const isSelected = selectedBlockId === block.id;
+                const isDragOver = dragOverId === block.id && draggedId !== block.id;
 
                 return (
-                  <button
+                  <div
                     key={block.id}
-                    onClick={() => setSelectedBlockId(block.id)}
+                    draggable
+                    onDragStart={() => setDraggedId(block.id)}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      if (dragOverId !== block.id) setDragOverId(block.id);
+                    }}
+                    onDragLeave={() => setDragOverId((prev) => (prev === block.id ? null : prev))}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      handleDrop(block.id);
+                    }}
+                    onDragEnd={() => {
+                      setDraggedId(null);
+                      setDragOverId(null);
+                    }}
                     className={cn(
-                      "w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors border",
-                      isSelected 
-                        ? "bg-primary/10 border-primary/20 text-primary" 
-                        : "bg-surface-elevated border-transparent text-foreground-secondary hover:bg-surface-elevated hover:text-foreground"
+                      "w-full flex items-center gap-2 rounded-md border transition-colors",
+                      isSelected
+                        ? "bg-primary/10 border-primary/20"
+                        : "bg-surface-elevated border-transparent hover:bg-surface-elevated",
+                      isDragOver && "ring-2 ring-primary/60",
+                      draggedId === block.id && "opacity-40"
                     )}
                   >
-                    <span className="flex-shrink-0">{entry.icon}</span>
-                    <span className="truncate">{entry.label}</span>
-                  </button>
+                    <span className="pl-2 text-foreground-muted cursor-grab active:cursor-grabbing shrink-0">
+                      <GripVertical className="h-4 w-4" />
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedBlockId(block.id)}
+                      className={cn(
+                        "flex-1 min-w-0 flex items-center gap-3 pr-3 py-2.5 text-sm font-medium transition-colors",
+                        isSelected
+                          ? "text-primary"
+                          : "text-foreground-secondary hover:text-foreground"
+                      )}
+                    >
+                      <span className="flex-shrink-0">{entry.icon}</span>
+                      <span className="truncate">{entry.label}</span>
+                    </button>
+                  </div>
                 );
               })}
             </div>
           ) : (
-            <AddBlockPanel clientId={clientId} campaignId={campaignId} pageId={pageId} />
+            <AddBlockPanel clientId={clientId} campaignId={campaignId} pageId={pageId} onAdded={handleBlockAdded} />
           )}
         </div>
       </div>
@@ -212,7 +285,8 @@ export function BuilderClient({ clientId, campaignId, pageId, blocks, campaignSt
               blockId={selectedBlock.id}
               blockType={selectedBlock.type as BlockType}
               config={selectedBlock.config}
-              onUpdate={() => {}} // We rely on Server Action reloads, or we can just let it reload
+              onConfigChange={(config) => handleConfigChange(selectedBlock.id, config)}
+              onDeleted={() => handleBlockDeleted(selectedBlock.id)}
             />
           ) : (
             <div className="text-center py-12 px-4 border border-dashed border-border rounded-lg bg-surface-elevated">

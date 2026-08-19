@@ -53,6 +53,7 @@ export default async function BuilderPage({
   return (
     <div className="-m-4 flex h-[calc(100dvh-64px)] min-w-0 overflow-hidden sm:-m-6 lg:-m-8">
       <BuilderClient
+        key={page.id}
         clientId={clientId}
         campaignId={campaignId}
         pageId={page.id}

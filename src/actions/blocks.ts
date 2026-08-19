@@ -27,12 +27,18 @@ export type BlockActionState = {
   success?: boolean;
 };
 
+export type CreatedBlock = {
+  id: string;
+  type: string;
+  config: Record<string, unknown>;
+};
+
 export async function addBlockAction(
   clientId: string,
   campaignId: string,
   pageId: string,
   blockType: string,
-): Promise<BlockActionState> {
+): Promise<BlockActionState & { block?: CreatedBlock }> {
   const user = await requireUser();
   await ensureCampaignBuilderAccess(user.id, clientId, campaignId);
 
@@ -63,7 +69,7 @@ export async function addBlockAction(
     }
   }
 
-  await prisma.block.create({
+  const created = await prisma.block.create({
     data: {
       pageId: page.id,
       type: blockType,
@@ -74,6 +80,49 @@ export async function addBlockAction(
 
   revalidatePath(
     `/dashboard/clients/${clientId}/campaigns/${campaignId}/builder`,
+  );
+  return {
+    success: true,
+    block: { id: created.id, type: created.type, config: created.config as Record<string, unknown> },
+  };
+}
+
+/**
+ * Persiste a nova ordem dos blocos após um drag-and-drop no painel de
+ * camadas. Recebe os IDs já na ordem final e grava position = índice —
+ * mais simples e robusto do que tentar calcular deslocamentos.
+ */
+export async function reorderBlocksAction(
+  clientId: string,
+  campaignId: string,
+  pageId: string,
+  orderedBlockIds: string[],
+): Promise<BlockActionState> {
+  const user = await requireUser();
+  await ensureCampaignBuilderAccess(user.id, clientId, campaignId);
+
+  const page = await prisma.page.findFirst({
+    where: { id: pageId, campaignId },
+    include: { blocks: { select: { id: true } } },
+  });
+  if (!page) return { error: "Página não encontrada" };
+
+  const validIds = new Set(page.blocks.map((b) => b.id));
+  if (orderedBlockIds.length !== page.blocks.length || orderedBlockIds.some((id) => !validIds.has(id))) {
+    return { error: "Lista de blocos inválida" };
+  }
+
+  await prisma.$transaction(
+    orderedBlockIds.map((id, index) =>
+      prisma.block.update({ where: { id }, data: { position: index } }),
+    ),
+  );
+
+  revalidatePath(
+    `/dashboard/clients/${clientId}/campaigns/${campaignId}/builder`,
+  );
+  revalidatePath(
+    `/dashboard/clients/${clientId}/campaigns/${campaignId}/preview`,
   );
   return { success: true };
 }

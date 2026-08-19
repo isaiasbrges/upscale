@@ -1,16 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { addBlockAction } from "@/actions/blocks";
+import { addBlockAction, type CreatedBlock } from "@/actions/blocks";
 import { blockRegistry, type BlockType } from "@/lib/blocks/registry";
 
 type AddBlockPanelProps = {
   clientId: string;
   campaignId: string;
   pageId: string;
+  onAdded: (block: CreatedBlock) => void;
 };
 
-export function AddBlockPanel({ clientId, campaignId, pageId }: AddBlockPanelProps) {
+export function AddBlockPanel({ clientId, campaignId, pageId, onAdded }: AddBlockPanelProps) {
   const [loadingType, setLoadingType] = useState<BlockType | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,10 +19,15 @@ export function AddBlockPanel({ clientId, campaignId, pageId }: AddBlockPanelPro
     setLoadingType(type);
     setError(null);
     try {
-      await addBlockAction(clientId, campaignId, pageId, type);
-      window.location.reload();
+      const result = await addBlockAction(clientId, campaignId, pageId, type);
+      if (result.error || !result.block) {
+        setError(result.error || "Não foi possível adicionar o bloco");
+        return;
+      }
+      onAdded(result.block);
     } catch (err: any) {
       setError(err.message || "Failed to add block");
+    } finally {
       setLoadingType(null);
     }
   };
