@@ -83,8 +83,8 @@ export function ScratchPrizeForm({
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <Label htmlFor="probability">Probabilidade (0 a 1) *</Label>
-          <Input required type="number" step="0.0001" min="0" max="1" id="probability" name="probability" defaultValue={initialData?.probability ?? "0.01"} />
+          <Label htmlFor="probability">Probabilidade (%) *</Label>
+          <Input required type="number" step="0.01" min="0" max="100" id="probability" name="probability" defaultValue={initialData?.probability ?? "10"} />
           {fieldErrors.probability?.[0] && <p className="text-xs text-danger mt-1">{fieldErrors.probability[0]}</p>}
         </div>
         <div>
