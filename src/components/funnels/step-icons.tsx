@@ -9,7 +9,7 @@ import {
   Link2,
   type LucideIcon,
 } from "lucide-react";
-import type { FunnelStepType } from "@/actions/funnel-steps";
+import type { FunnelStepType } from "@/lib/funnel-step-types";
 
 export const FUNNEL_STEP_TYPE_ICONS: Record<FunnelStepType, LucideIcon> = {
   LANDING_PAGE: Layout,
