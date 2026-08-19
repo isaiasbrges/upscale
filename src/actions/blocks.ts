@@ -4,7 +4,6 @@ import { revalidatePath } from "next/cache";
 import { requireUser } from "@/lib/auth";
 import { blockRegistry, type BlockType } from "@/lib/blocks/registry";
 import { prisma } from "@/lib/prisma";
-import { getOrCreateMainPage } from "./campaigns";
 
 async function ensureCampaignBuilderAccess(
   userId: string,
@@ -31,6 +30,7 @@ export type BlockActionState = {
 export async function addBlockAction(
   clientId: string,
   campaignId: string,
+  pageId: string,
   blockType: string,
 ): Promise<BlockActionState> {
   const user = await requireUser();
@@ -39,18 +39,36 @@ export async function addBlockAction(
   const entry = blockRegistry[blockType as BlockType];
   if (!entry) return { error: "Tipo de bloco inválido" };
 
-  const page = await getOrCreateMainPage(campaignId);
+  const page = await prisma.page.findFirst({
+    where: { id: pageId, campaignId },
+    include: { blocks: { select: { position: true } } },
+  });
+  if (!page) return { error: "Página não encontrada" };
+
   const maxPosition = page.blocks.reduce(
     (max, b) => Math.max(max, b.position),
     -1,
   );
+
+  // Novos blocos nascem com a cor de marca do cliente (quando cadastrada),
+  // aplicada só nos campos claramente "de marca" — nunca na cor de texto,
+  // pra não arriscar quebrar contraste de leitura.
+  const config: Record<string, unknown> = { ...entry.defaultConfig };
+  const client = await prisma.client.findUnique({ where: { id: clientId }, select: { brandColor: true } });
+  if (client?.brandColor) {
+    for (const field of entry.fields) {
+      if (field.type === "color" && (field.key === "backgroundColor" || field.key === "accentColor")) {
+        config[field.key] = client.brandColor;
+      }
+    }
+  }
 
   await prisma.block.create({
     data: {
       pageId: page.id,
       type: blockType,
       position: maxPosition + 1,
-      config: entry.defaultConfig as any,
+      config: config as any,
     },
   });
 

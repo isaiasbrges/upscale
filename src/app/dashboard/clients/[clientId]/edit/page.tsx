@@ -45,6 +45,7 @@ export default async function EditClientPage({
           name: client.name,
           slug: client.slug,
           logoUrl: client.logoUrl,
+          brandColor: client.brandColor,
         }}
       />
 

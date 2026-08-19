@@ -5,10 +5,13 @@ import { prisma } from "@/lib/prisma";
 
 export default async function BuilderPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ clientId: string; campaignId: string }>;
+  searchParams: Promise<{ page?: string }>;
 }) {
   const { clientId, campaignId } = await params;
+  const { page: requestedPageId } = await searchParams;
   const user = await requireUser();
 
   const campaign = await prisma.campaign.findFirst({
@@ -18,8 +21,8 @@ export default async function BuilderPage({
       client: { members: { some: { userId: user.id } } },
     },
     include: {
+      client: { select: { slug: true } },
       pages: {
-        take: 1,
         orderBy: { createdAt: "asc" },
         include: { blocks: { orderBy: { position: "asc" } } },
       },
@@ -28,10 +31,13 @@ export default async function BuilderPage({
 
   if (!campaign) notFound();
 
-  const page = campaign.pages[0] ?? await prisma.page.create({
-    data: { campaignId, name: "Principal" },
-    include: { blocks: true },
-  });
+  const page =
+    (requestedPageId && campaign.pages.find((p) => p.id === requestedPageId)) ||
+    campaign.pages[0] ||
+    (await prisma.page.create({
+      data: { campaignId, name: "Principal" },
+      include: { blocks: true },
+    }));
 
   // We map the database blocks to simple objects so they can be passed to Client Component
   const blocks = page.blocks.map(b => ({
@@ -46,7 +52,15 @@ export default async function BuilderPage({
   
   return (
     <div className="-m-4 flex h-[calc(100dvh-64px)] min-w-0 overflow-hidden sm:-m-6 lg:-m-8">
-      <BuilderClient clientId={clientId} campaignId={campaignId} blocks={blocks} />
+      <BuilderClient
+        clientId={clientId}
+        campaignId={campaignId}
+        pageId={page.id}
+        blocks={blocks}
+        campaignStatus={campaign.status}
+        campaignSlug={campaign.slug}
+        clientSlug={campaign.client.slug}
+      />
     </div>
   );
 }

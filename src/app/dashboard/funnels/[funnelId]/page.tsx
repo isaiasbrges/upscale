@@ -109,8 +109,12 @@ export default async function FunnelDetailPage({
         ))}
       </div>
 
-      {activeTab === "mapa" && <FunnelMap funnelId={funnel.id} steps={stepsWithMetrics} />}
-      {activeTab === "etapas" && <FunnelStepsList funnelId={funnel.id} steps={funnel.steps} />}
+      {activeTab === "mapa" && (
+        <FunnelMap funnelId={funnel.id} clientId={funnel.client.id} campaignId={campaign?.id ?? null} steps={stepsWithMetrics} />
+      )}
+      {activeTab === "etapas" && (
+        <FunnelStepsList funnelId={funnel.id} clientId={funnel.client.id} campaignId={campaign?.id ?? null} steps={funnel.steps} />
+      )}
       {activeTab === "analytics" && <FunnelAnalytics steps={stepsWithMetrics} />}
       {activeTab === "configuracoes" && (
         <FunnelSettingsForm

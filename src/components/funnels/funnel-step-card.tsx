@@ -2,7 +2,8 @@
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Pencil, Trash2, CheckCircle2, Circle, Link2 } from "lucide-react";
+import Link from "next/link";
+import { Pencil, Trash2, CheckCircle2, Circle, Link2, ExternalLink, Copy, Check } from "lucide-react";
 import { Card } from "@/design-system/components/card";
 import { Badge } from "@/design-system/components/badge";
 import { Button } from "@/components/ui/button";
@@ -13,21 +14,27 @@ import {
   deleteFunnelStepAction,
   setFunnelStepStatusAction,
 } from "@/actions/funnel-steps";
-import { FUNNEL_STEP_TYPE_LABELS, type FunnelStepType } from "@/lib/funnel-step-types";
+import { FUNNEL_STEP_TYPE_LABELS, isFunnelStepPubliclyResolvable, type FunnelStepType } from "@/lib/funnel-step-types";
 import { FUNNEL_STEP_TYPE_ICONS } from "./step-icons";
 import type { StepMetrics } from "@/lib/funnel-metrics";
 
 export function FunnelStepCard({
   funnelId,
+  clientId,
+  campaignId,
   step,
 }: {
   funnelId: string;
+  clientId: string;
+  campaignId: string | null;
   step: {
     id: string;
     name: string;
     type: string;
     status: string;
     config: unknown;
+    pageId: string | null;
+    scratchCardId: string | null;
     metrics: StepMetrics;
   };
 }) {
@@ -36,6 +43,7 @@ export function FunnelStepCard({
   const [pending, setPending] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string[]>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   const type = step.type as FunnelStepType;
   const Icon = FUNNEL_STEP_TYPE_ICONS[type] ?? Link2;
@@ -43,6 +51,13 @@ export function FunnelStepCard({
   const currentUrl = isUrlType && step.config && typeof step.config === "object" && "url" in (step.config as any)
     ? (step.config as any).url
     : "";
+
+  async function handleCopyLink() {
+    const url = `${window.location.origin}/f/${step.id}`;
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   async function toggleStatus() {
     setPending(true);
@@ -140,6 +155,20 @@ export function FunnelStepCard({
       </div>
 
       <div className="flex items-center gap-2 mt-4">
+        {step.type === "PAGE" && step.pageId && campaignId && (
+          <Link href={`/dashboard/clients/${clientId}/campaigns/${campaignId}/builder?page=${step.pageId}`}>
+            <Button variant="secondary" size="sm">
+              <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Editar conteúdo
+            </Button>
+          </Link>
+        )}
+        {step.type === "SCRATCH_CARD" && step.scratchCardId && (
+          <Link href={`/dashboard/scratch-cards/${step.scratchCardId}/edit`}>
+            <Button variant="secondary" size="sm">
+              <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Editar raspadinha
+            </Button>
+          </Link>
+        )}
         <Button variant="secondary" size="sm" onClick={() => setEditing(true)} disabled={pending}>
           <Pencil className="h-3.5 w-3.5 mr-1.5" /> Editar
         </Button>
@@ -147,6 +176,12 @@ export function FunnelStepCard({
           {step.status === "PUBLISHED" ? <Circle className="h-3.5 w-3.5 mr-1.5" /> : <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />}
           {step.status === "PUBLISHED" ? "Tornar rascunho" : "Publicar"}
         </Button>
+        {step.status === "PUBLISHED" && isFunnelStepPubliclyResolvable(step) && (
+          <Button variant="ghost" size="sm" onClick={handleCopyLink}>
+            {copied ? <Check className="h-3.5 w-3.5 mr-1.5 text-success" /> : <Copy className="h-3.5 w-3.5 mr-1.5" />}
+            {copied ? "Copiado!" : "Copiar link"}
+          </Button>
+        )}
         <Button variant="ghost" size="sm" onClick={handleDelete} disabled={pending} className="text-danger hover:bg-danger/10 ml-auto">
           <Trash2 className="h-3.5 w-3.5" />
         </Button>

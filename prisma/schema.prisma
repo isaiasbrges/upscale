@@ -19,16 +19,18 @@ model User {
 }
 
 model Client {
-  id        String         @id @default(cuid())
-  name      String
-  slug      String         @unique
-  logoUrl   String?
-  members   ClientMember[]
+  id         String         @id @default(cuid())
+  name       String
+  slug       String         @unique
+  logoUrl    String?
+  brandColor String?
+  members    ClientMember[]
   campaigns Campaign[]
   domains      Domain[]
   funnels      Funnel[]
   assets       FileAsset[]
   scratchCards ScratchCard[]
+  purchaseEvents PurchaseEvent[]
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
 }
@@ -241,4 +243,22 @@ model ScratchCard {
 
   @@index([clientId])
   @@index([campaignId])
+}
+
+/// Evento recebido de um webhook de checkout externo (ex.: confirmação de
+/// compra). referenceId é o identificador do pedido/transação usado pela
+/// página pública do funil (?ref=...) para achar o nome do comprador e
+/// personalizar o conteúdo (ver src/lib/personalization.ts).
+model PurchaseEvent {
+  id          String   @id @default(cuid())
+  clientId    String
+  referenceId String
+  buyerName   String?
+  buyerEmail  String?
+  rawPayload  Json
+  client      Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([clientId, referenceId])
+  @@index([clientId])
 }

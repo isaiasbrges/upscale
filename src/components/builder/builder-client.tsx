@@ -6,7 +6,8 @@ import { BlockEditor } from "./block-editor";
 import { AddBlockPanel } from "./add-block-panel";
 import { blockRegistry, type BlockType } from "@/lib/blocks/registry";
 import { cn } from "@/lib/utils";
-import { Layers, Plus, Monitor, Smartphone, Settings2 } from "lucide-react";
+import { Layers, Plus, Monitor, Smartphone, Copy, Check, Settings2 } from "lucide-react";
+import { setCampaignPublishedAction } from "@/actions/campaigns";
 
 type Block = {
   id: string;
@@ -17,17 +18,42 @@ type Block = {
 type BuilderClientProps = {
   clientId: string;
   campaignId: string;
+  pageId: string;
   blocks: Block[];
+  campaignStatus: string;
+  campaignSlug: string;
+  clientSlug: string;
 };
 
-export function BuilderClient({ clientId, campaignId, blocks }: BuilderClientProps) {
+export function BuilderClient({ clientId, campaignId, pageId, blocks, campaignStatus, campaignSlug, clientSlug }: BuilderClientProps) {
   const [selectedBlockId, setSelectedBlockId] = useState<string | null>(
     blocks.length > 0 ? blocks[0].id : null
   );
   const [previewMode, setPreviewMode] = useState<"desktop" | "mobile">("desktop");
   const [leftTab, setLeftTab] = useState<"layers" | "add">("layers");
+  const [status, setStatus] = useState(campaignStatus);
+  const [isToggling, setIsToggling] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   const selectedBlock = blocks.find(b => b.id === selectedBlockId);
+
+  async function handleTogglePublish() {
+    const next = status === "PUBLISHED" ? "DRAFT" : "PUBLISHED";
+    setIsToggling(true);
+    try {
+      await setCampaignPublishedAction(clientId, campaignId, next === "PUBLISHED");
+      setStatus(next);
+    } finally {
+      setIsToggling(false);
+    }
+  }
+
+  async function handleCopyLink() {
+    const url = `${window.location.origin}/p/${clientSlug}/${campaignSlug}`;
+    await navigator.clipboard.writeText(url);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   return (
     <div className="flex h-full min-w-0 w-full overflow-hidden bg-background">
@@ -80,7 +106,7 @@ export function BuilderClient({ clientId, campaignId, blocks }: BuilderClientPro
               })}
             </div>
           ) : (
-            <AddBlockPanel clientId={clientId} campaignId={campaignId} />
+            <AddBlockPanel clientId={clientId} campaignId={campaignId} pageId={pageId} />
           )}
         </div>
       </div>
@@ -88,16 +114,41 @@ export function BuilderClient({ clientId, campaignId, blocks }: BuilderClientPro
       {/* Center Panel: Live Preview Canvas */}
       <div className="relative flex min-w-0 flex-1 flex-col overflow-hidden bg-[#0C0F12]">
         {/* Toolbar superior para evitar sobreposição no conteúdo */}
-        <div className="w-full h-14 bg-surface border-b border-border flex items-center justify-center z-20 shadow-sm">
-          <div className="flex bg-surface-elevated border border-border p-1 rounded-lg">
-            <button 
+        <div className="w-full h-14 bg-surface border-b border-border flex items-center justify-between gap-3 px-3 z-20 shadow-sm">
+          <div className="flex items-center gap-2 shrink-0">
+            <span className={cn(
+              "text-xs font-semibold px-2 py-1 rounded-full",
+              status === "PUBLISHED" ? "bg-success/15 text-success" : "bg-surface-elevated text-foreground-muted"
+            )}>
+              {status === "PUBLISHED" ? "Publicado" : "Rascunho"}
+            </span>
+            <button
+              onClick={handleTogglePublish}
+              disabled={isToggling}
+              className="text-xs font-semibold px-3 py-1.5 rounded-md border border-border bg-surface-elevated text-foreground hover:bg-background transition-colors disabled:opacity-50"
+            >
+              {isToggling ? "Aguarde..." : status === "PUBLISHED" ? "Despublicar" : "Publicar"}
+            </button>
+            {status === "PUBLISHED" && (
+              <button
+                onClick={handleCopyLink}
+                className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md border border-border bg-surface-elevated text-foreground hover:bg-background transition-colors"
+              >
+                {copied ? <Check className="h-3.5 w-3.5 text-success" /> : <Copy className="h-3.5 w-3.5" />}
+                {copied ? "Copiado!" : "Copiar link"}
+              </button>
+            )}
+          </div>
+
+          <div className="flex bg-surface-elevated border border-border p-1 rounded-lg shrink-0">
+            <button
               onClick={() => setPreviewMode("desktop")}
               className={cn("p-1.5 rounded-md transition-colors", previewMode === "desktop" ? "bg-background text-primary shadow-sm" : "text-foreground-muted hover:text-foreground")}
               title="Desktop View"
             >
               <Monitor className="h-4 w-4" />
             </button>
-            <button 
+            <button
               onClick={() => setPreviewMode("mobile")}
               className={cn("p-1.5 rounded-md transition-colors", previewMode === "mobile" ? "bg-background text-primary shadow-sm" : "text-foreground-muted hover:text-foreground")}
               title="Mobile View"
@@ -105,6 +156,8 @@ export function BuilderClient({ clientId, campaignId, blocks }: BuilderClientPro
               <Smartphone className="h-4 w-4" />
             </button>
           </div>
+
+          <div className="w-[220px] shrink-0" aria-hidden />
         </div>
 
         <div className={cn("custom-scrollbar flex flex-1 justify-center overflow-auto p-3 xl:p-6", previewMode === "desktop" ? "items-start" : "items-center")}> 

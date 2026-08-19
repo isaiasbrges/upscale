@@ -65,6 +65,19 @@ export async function createScratchCardAction(
     return { error: "Campanha inválida para o cliente selecionado." };
   }
 
+  // Sem configurações explícitas, a raspadinha nasce com a cor de marca do
+  // cliente (quando cadastrada) em vez do azul padrão fixo.
+  let settings = parsed.data.settings;
+  if (!settings) {
+    const client = await prisma.client.findUnique({
+      where: { id: parsed.data.clientId },
+      select: { brandColor: true },
+    });
+    if (client?.brandColor) {
+      settings = { cardColor: client.brandColor };
+    }
+  }
+
   const scratchCard = await prisma.scratchCard.create({
     data: {
       name: parsed.data.name,
@@ -72,7 +85,7 @@ export async function createScratchCardAction(
       campaignId: parsed.data.campaignId,
       template: parsed.data.template,
       status: parsed.data.status,
-      settings: parsed.data.settings ?? undefined,
+      settings: settings ?? undefined,
     },
   });
 
@@ -165,6 +178,28 @@ export async function deleteScratchCardAction(id: string) {
   revalidatePath(`/dashboard/clients/${existing.clientId}/campaigns/${existing.campaignId}`);
   
   // Return void, calling components should redirect or refresh
+}
+
+export async function setScratchCardStatusAction(scratchCardId: string, status: "DRAFT" | "PUBLISHED" | "PAUSED") {
+  const user = await requireUser();
+  const existing = await prisma.scratchCard.findUnique({ where: { id: scratchCardId } });
+
+  if (!existing) {
+    throw new Error("Raspadinha não encontrada");
+  }
+
+  await ensureClientAccess(user.id, existing.clientId);
+
+  const updated = await prisma.scratchCard.update({
+    where: { id: scratchCardId },
+    data: { status },
+  });
+
+  revalidatePath(`/dashboard/scratch-cards`);
+  revalidatePath(`/dashboard/scratch-cards/${scratchCardId}/edit`);
+  revalidatePath(`/dashboard/clients/${existing.clientId}`);
+
+  return updated;
 }
 
 export async function setWinningPrize(scratchCardId: string, prizeId: string | null) {

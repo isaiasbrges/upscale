@@ -14,6 +14,11 @@ const clientSchema = z.object({
     .min(2, "Slug deve ter pelo menos 2 caracteres")
     .regex(/^[a-z0-9-]+$/, "Slug inválido"),
   logoUrl: z.string().url("URL inválida").optional().or(z.literal("")),
+  brandColor: z
+    .string()
+    .regex(/^#[0-9a-fA-F]{6}$/, "Cor inválida")
+    .optional()
+    .or(z.literal("")),
 });
 
 export type ClientActionState = {
@@ -38,6 +43,7 @@ export async function createClientAction(
     name: formData.get("name"),
     slug: formData.get("slug") || slugify(String(formData.get("name") ?? "")),
     logoUrl: formData.get("logoUrl") || "",
+    brandColor: formData.get("brandColor") || "",
   });
 
   if (!parsed.success) {
@@ -61,6 +67,7 @@ export async function createClientAction(
       name: parsed.data.name,
       slug: parsed.data.slug,
       logoUrl: parsed.data.logoUrl || null,
+      brandColor: parsed.data.brandColor || null,
       members: { create: { userId: user.id } },
     },
   });
@@ -81,6 +88,7 @@ export async function updateClientAction(
     name: formData.get("name"),
     slug: formData.get("slug"),
     logoUrl: formData.get("logoUrl") || "",
+    brandColor: formData.get("brandColor") || "",
   });
 
   if (!parsed.success) {
@@ -105,6 +113,7 @@ export async function updateClientAction(
       name: parsed.data.name,
       slug: parsed.data.slug,
       logoUrl: parsed.data.logoUrl || null,
+      brandColor: parsed.data.brandColor || null,
     },
   });
 

@@ -19,6 +19,7 @@ type ClientFormProps = {
     name: string;
     slug: string;
     logoUrl?: string | null;
+    brandColor?: string | null;
   };
 };
 
@@ -94,6 +95,25 @@ export function ClientForm({ mode, clientId, defaultValues }: ClientFormProps) {
             />
             {state.fieldErrors?.logoUrl && (
               <p className="text-xs text-danger">{state.fieldErrors.logoUrl[0]}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="brandColor">Cor da marca</Label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                id="brandColor"
+                name="brandColor"
+                defaultValue={defaultValues?.brandColor || "#183cca"}
+                className="h-11 w-14 rounded-md border border-border bg-background p-1 cursor-pointer"
+              />
+              <p className="text-xs text-foreground-muted">
+                Usada como cor padrão em novas raspadinhas e blocos criados para este cliente.
+              </p>
+            </div>
+            {state.fieldErrors?.brandColor && (
+              <p className="text-xs text-danger">{state.fieldErrors.brandColor[0]}</p>
             )}
           </div>
 

@@ -10,10 +10,22 @@ type StepWithMetrics = {
   type: string;
   status: string;
   config: unknown;
+  pageId: string | null;
+  scratchCardId: string | null;
   metrics: StepMetrics;
 };
 
-export function FunnelMap({ funnelId, steps }: { funnelId: string; steps: StepWithMetrics[] }) {
+export function FunnelMap({
+  funnelId,
+  clientId,
+  campaignId,
+  steps,
+}: {
+  funnelId: string;
+  clientId: string;
+  campaignId: string | null;
+  steps: StepWithMetrics[];
+}) {
   return (
     <div className="space-y-4">
       <div className="flex justify-end">
@@ -46,7 +58,7 @@ export function FunnelMap({ funnelId, steps }: { funnelId: string; steps: StepWi
                   </div>
                 )}
                 <div className="w-full">
-                  <FunnelStepCard funnelId={funnelId} step={step} />
+                  <FunnelStepCard funnelId={funnelId} clientId={clientId} campaignId={campaignId} step={step} />
                 </div>
               </div>
             );
