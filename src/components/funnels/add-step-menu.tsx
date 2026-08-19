@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/design-system/components/card";
-import { addFunnelStepAction, type FunnelStepType } from "@/actions/funnel-steps";
+import { addFunnelStepAction } from "@/actions/funnel-steps";
+import type { FunnelStepType } from "@/lib/funnel-step-types";
 
 const STEP_OPTIONS: { type: FunnelStepType; label: string; icon: typeof FileText; needsUrl?: boolean }[] = [
   { type: "PAGE", label: "Criar página", icon: FileText },
