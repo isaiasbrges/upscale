@@ -10,8 +10,13 @@ export type ActivityItem = {
   at: Date;
 };
 
-export async function getDashboardStats(userId: string) {
-  const accessibleClient = { client: { members: { some: { userId } } } };
+export async function getDashboardStats(userId: string, clientId?: string | null) {
+  // clientId sempre combinado com a checagem de membership: mesmo que alguém
+  // manipule o parâmetro na URL, só filtra para um cliente que o usuário
+  // realmente tem acesso — nunca vaza dado de outro cliente.
+  const accessibleClient = clientId
+    ? { clientId, client: { members: { some: { userId } } } }
+    : { client: { members: { some: { userId } } } };
   const sevenDaysAgo = new Date(Date.now() - SEVEN_DAYS_MS);
 
   const [
@@ -26,7 +31,7 @@ export async function getDashboardStats(userId: string) {
     recentActivityDomains,
     recentPlays,
   ] = await Promise.all([
-    prisma.clientMember.count({ where: { userId } }),
+    clientId ? Promise.resolve(1) : prisma.clientMember.count({ where: { userId } }),
     prisma.campaign.count({ where: { ...accessibleClient, status: "PUBLISHED" } }),
     prisma.funnel.count({ where: { ...accessibleClient, status: "PUBLISHED" } }),
     prisma.scratchCard.count({ where: { ...accessibleClient, status: "PUBLISHED" } }),

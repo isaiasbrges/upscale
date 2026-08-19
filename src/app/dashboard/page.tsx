@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { requireUser } from "@/lib/auth";
 import { getDashboardStats } from "@/lib/dashboard-stats";
+import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/design-system/components/page-header";
 import { Card } from "@/design-system/components/card";
 import { Badge } from "@/design-system/components/badge";
 import { EmptyState } from "@/design-system/components/empty-state";
+import { ClientFilter } from "@/components/dashboard/client-filter";
 import {
   Users,
   Megaphone,
@@ -37,9 +39,26 @@ const campaignStatusVariant: Record<string, "success" | "neutral"> = {
   DRAFT: "neutral",
 };
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ client?: string }>;
+}) {
+  const { client: requestedClientId } = await searchParams;
   const user = await requireUser();
-  const stats = await getDashboardStats(user.id);
+
+  const clients = await prisma.client.findMany({
+    where: { members: { some: { userId: user.id } } },
+    select: { id: true, name: true },
+    orderBy: { name: "asc" },
+  });
+
+  // Só aceita o filtro se o cliente pedido estiver na lista de clientes que
+  // o usuário realmente tem acesso — evita vazar stats de outro cliente via URL.
+  const selectedClientId =
+    requestedClientId && clients.some((c) => c.id === requestedClientId) ? requestedClientId : null;
+
+  const stats = await getDashboardStats(user.id, selectedClientId);
 
   const performanceCards = [
     { label: "Visitantes", value: stats.performance.visitors, icon: Eye },
@@ -61,6 +80,7 @@ export default async function DashboardPage() {
         description={`Bem-vindo de volta, ${user.name ?? user.email}`}
         actions={
           <div className="flex gap-3">
+            <ClientFilter clients={clients} selectedClientId={selectedClientId} />
             <Link href="/dashboard/clients/new">
               <Button variant="secondary">Novo cliente</Button>
             </Link>
