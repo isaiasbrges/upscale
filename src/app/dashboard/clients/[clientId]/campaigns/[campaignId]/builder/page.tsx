@@ -21,6 +21,7 @@ export default async function BuilderPage({
       client: { members: { some: { userId: user.id } } },
     },
     include: {
+      client: { select: { slug: true } },
       pages: {
         orderBy: { createdAt: "asc" },
         include: { blocks: { orderBy: { position: "asc" } } },
@@ -51,7 +52,15 @@ export default async function BuilderPage({
   
   return (
     <div className="-m-4 flex h-[calc(100dvh-64px)] min-w-0 overflow-hidden sm:-m-6 lg:-m-8">
-      <BuilderClient clientId={clientId} campaignId={campaignId} pageId={page.id} blocks={blocks} />
+      <BuilderClient
+        clientId={clientId}
+        campaignId={campaignId}
+        pageId={page.id}
+        blocks={blocks}
+        campaignStatus={campaign.status}
+        campaignSlug={campaign.slug}
+        clientSlug={campaign.client.slug}
+      />
     </div>
   );
 }
