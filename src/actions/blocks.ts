@@ -50,12 +50,25 @@ export async function addBlockAction(
     -1,
   );
 
+  // Novos blocos nascem com a cor de marca do cliente (quando cadastrada),
+  // aplicada só nos campos claramente "de marca" — nunca na cor de texto,
+  // pra não arriscar quebrar contraste de leitura.
+  const config: Record<string, unknown> = { ...entry.defaultConfig };
+  const client = await prisma.client.findUnique({ where: { id: clientId }, select: { brandColor: true } });
+  if (client?.brandColor) {
+    for (const field of entry.fields) {
+      if (field.type === "color" && (field.key === "backgroundColor" || field.key === "accentColor")) {
+        config[field.key] = client.brandColor;
+      }
+    }
+  }
+
   await prisma.block.create({
     data: {
       pageId: page.id,
       type: blockType,
       position: maxPosition + 1,
-      config: entry.defaultConfig as any,
+      config: config as any,
     },
   });
 

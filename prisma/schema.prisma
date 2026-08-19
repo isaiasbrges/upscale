@@ -19,11 +19,12 @@ model User {
 }
 
 model Client {
-  id        String         @id @default(cuid())
-  name      String
-  slug      String         @unique
-  logoUrl   String?
-  members   ClientMember[]
+  id         String         @id @default(cuid())
+  name       String
+  slug       String         @unique
+  logoUrl    String?
+  brandColor String?
+  members    ClientMember[]
   campaigns Campaign[]
   domains      Domain[]
   funnels      Funnel[]
