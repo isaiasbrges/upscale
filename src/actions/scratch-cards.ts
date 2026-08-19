@@ -167,6 +167,28 @@ export async function deleteScratchCardAction(id: string) {
   // Return void, calling components should redirect or refresh
 }
 
+export async function setScratchCardStatusAction(scratchCardId: string, status: "DRAFT" | "PUBLISHED" | "PAUSED") {
+  const user = await requireUser();
+  const existing = await prisma.scratchCard.findUnique({ where: { id: scratchCardId } });
+
+  if (!existing) {
+    throw new Error("Raspadinha não encontrada");
+  }
+
+  await ensureClientAccess(user.id, existing.clientId);
+
+  const updated = await prisma.scratchCard.update({
+    where: { id: scratchCardId },
+    data: { status },
+  });
+
+  revalidatePath(`/dashboard/scratch-cards`);
+  revalidatePath(`/dashboard/scratch-cards/${scratchCardId}/edit`);
+  revalidatePath(`/dashboard/clients/${existing.clientId}`);
+
+  return updated;
+}
+
 export async function setWinningPrize(scratchCardId: string, prizeId: string | null) {
   const user = await requireUser();
   const existing = await prisma.scratchCard.findUnique({ where: { id: scratchCardId } });

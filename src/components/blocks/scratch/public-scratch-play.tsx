@@ -85,6 +85,7 @@ export function PublicScratchPlay({
       resultWon={result.resultType === "WIN"}
       resultPrize={result.prize}
       continueHref={nextStepPath}
+      fullscreenTakeover
     />
   );
 }

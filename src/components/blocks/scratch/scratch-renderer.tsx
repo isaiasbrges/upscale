@@ -55,6 +55,14 @@ export const ScratchRenderer: React.FC<
     resultPrize?: ResultPrize;
     /** Link para a próxima etapa do funil, exibido como CTA na tela de resultado. */
     continueHref?: string | null;
+    /**
+     * Quando true, o componente vira a página inteira: fixa em tela cheia e
+     * esconde tudo mais no <body>. Só faça isso quando ele for de fato o
+     * único conteúdo da página (ex.: a rota pública /f/[stepId]) — dentro
+     * do dashboard (preview do builder, editor da raspadinha) isso esconde
+     * a interface inteira do admin por baixo. Padrão: false (contido).
+     */
+    fullscreenTakeover?: boolean;
   }
 > = ({
   eyebrow,
@@ -79,6 +87,7 @@ export const ScratchRenderer: React.FC<
   resultWon,
   resultPrize,
   continueHref,
+  fullscreenTakeover = false,
 }) => {
   const hasRealResult = resultWon !== undefined;
   const cols = parseInt(gridSize.charAt(0)) || 3;
@@ -145,16 +154,32 @@ export const ScratchRenderer: React.FC<
 
   return (
     <>
-      <style dangerouslySetInnerHTML={{ __html: `
-        body > *:not(#scratch-flow-container) { display: none !important; }
-        body { background: #000; overflow: hidden; margin: 0; }
-        @keyframes iconPop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        @keyframes glGreen { 0%, 100% { box-shadow: 0 6px 30px rgba(0,224,40,0.45); } 50% { box-shadow: 0 6px 55px rgba(0,224,40,0.8), 0 0 0 8px rgba(0,224,40,0.12); } }
-        @keyframes borderSpin { to { background-position: 300% center; } }
-      `}} />
+      {fullscreenTakeover && (
+        <style dangerouslySetInnerHTML={{ __html: `
+          body > *:not(#scratch-flow-container) { display: none !important; }
+          body { background: #000; overflow: hidden; margin: 0; }
+          @keyframes iconPop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+          @keyframes glGreen { 0%, 100% { box-shadow: 0 6px 30px rgba(0,224,40,0.45); } 50% { box-shadow: 0 6px 55px rgba(0,224,40,0.8), 0 0 0 8px rgba(0,224,40,0.12); } }
+          @keyframes borderSpin { to { background-position: 300% center; } }
+        `}} />
+      )}
+      {!fullscreenTakeover && (
+        <style dangerouslySetInnerHTML={{ __html: `
+          @keyframes iconPop { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+          @keyframes glGreen { 0%, 100% { box-shadow: 0 6px 30px rgba(0,224,40,0.45); } 50% { box-shadow: 0 6px 55px rgba(0,224,40,0.8), 0 0 0 8px rgba(0,224,40,0.12); } }
+          @keyframes borderSpin { to { background-position: 300% center; } }
+        `}} />
+      )}
 
-      <div id="scratch-flow-container" className="fixed inset-0 z-[9999] bg-black/95 flex flex-col items-center justify-center p-4">
-        
+      <div
+        id="scratch-flow-container"
+        className={
+          fullscreenTakeover
+            ? "fixed inset-0 z-[9999] bg-black/95 flex flex-col items-center justify-center p-4"
+            : "relative w-full flex flex-col items-center justify-center p-4"
+        }
+      >
+
         {/* SCRATCH CARD UI */}
         {!isWinScreenVisible && (
           <div 
@@ -234,7 +259,7 @@ export const ScratchRenderer: React.FC<
 
         {/* RESULT MODAL — legado (bloco decorativo, sem resultado real) sempre mostra "ganhou" */}
         {isWinScreenVisible && !hasRealResult && (
-          <div className="fixed inset-0 z-[10000] bg-[radial-gradient(ellipse_at_50%_25%,#081600,#080808_65%)] flex items-center justify-center p-5">
+          <div className={`${fullscreenTakeover ? "fixed inset-0" : "absolute inset-0"} z-[10000] bg-[radial-gradient(ellipse_at_50%_25%,#081600,#080808_65%)] flex items-center justify-center p-5`}>
             <div className="max-w-[360px] w-full text-center relative">
               <div className="bg-gradient-to-br from-[#0A1200] to-[#080808] rounded-[22px] p-6 relative overflow-hidden">
                 <div
@@ -279,7 +304,7 @@ export const ScratchRenderer: React.FC<
 
         {/* RESULT MODAL — raspadinha real (ScratchCard), usa o resultado de fato */}
         {isWinScreenVisible && hasRealResult && resultWon && (
-          <div className="fixed inset-0 z-[10000] bg-[radial-gradient(ellipse_at_50%_25%,#081600,#080808_65%)] flex items-center justify-center p-5">
+          <div className={`${fullscreenTakeover ? "fixed inset-0" : "absolute inset-0"} z-[10000] bg-[radial-gradient(ellipse_at_50%_25%,#081600,#080808_65%)] flex items-center justify-center p-5`}>
             <div className="max-w-[360px] w-full text-center relative">
               <div className="bg-gradient-to-br from-[#0A1200] to-[#080808] rounded-[22px] p-6 relative overflow-hidden">
                 <div
@@ -330,7 +355,7 @@ export const ScratchRenderer: React.FC<
 
         {/* RESULT MODAL — raspadinha real, resultado negativo */}
         {isWinScreenVisible && hasRealResult && !resultWon && (
-          <div className="fixed inset-0 z-[10000] bg-[radial-gradient(ellipse_at_50%_25%,#080808_0%,#050505_65%)] flex items-center justify-center p-5">
+          <div className={`${fullscreenTakeover ? "fixed inset-0" : "absolute inset-0"} z-[10000] bg-[radial-gradient(ellipse_at_50%_25%,#080808_0%,#050505_65%)] flex items-center justify-center p-5`}>
             <div className="max-w-[360px] w-full text-center relative">
               <div className="bg-gradient-to-br from-[#0A0A0A] to-[#080808] rounded-[22px] p-6 border border-white/10">
                 <X className="w-16 h-16 mx-auto mb-3 text-gray-500" />

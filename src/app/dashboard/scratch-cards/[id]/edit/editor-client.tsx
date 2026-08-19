@@ -3,19 +3,20 @@
 import React, { useState, useEffect } from "react";
 import { PageHeader } from "@/design-system/components/page-header";
 import { Panel, PanelContent, PanelHeader } from "@/design-system/components/panel";
+import { Badge } from "@/design-system/components/badge";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { ScratchPrizeForm } from "./prize-form";
 import { playScratchCard } from "@/actions/scratch";
-import { setWinningPrize } from "@/actions/scratch-cards";
+import { setWinningPrize, setScratchCardStatusAction, updateScratchCardAction } from "@/actions/scratch-cards";
 import { ScratchRenderer } from "@/components/blocks/scratch/scratch-renderer";
 import { useRouter } from "next/navigation";
 
 export function ScratchCardEditorClient({ scratchCard, prizes }: { scratchCard: any, prizes: any[] }) {
   const router = useRouter();
   const [name, setName] = useState(scratchCard.name || "Raspadinha Black Friday");
-  
+
   // Extract custom settings or default
   const settings = typeof scratchCard.settings === "object" && scratchCard.settings ? scratchCard.settings : {};
   const [coverText, setCoverText] = useState(settings.coverText || "Raspadinha da Sorte");
@@ -29,6 +30,11 @@ export function ScratchCardEditorClient({ scratchCard, prizes }: { scratchCard: 
   const [isUpdatingWinner, setIsUpdatingWinner] = useState(false);
   const [gridItems, setGridItems] = useState<string[] | undefined>();
 
+  const [status, setStatus] = useState<string>(scratchCard.status || "DRAFT");
+  const [isTogglingStatus, setIsTogglingStatus] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+
   const handleWinnerChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
     setWinningPrizeId(val);
@@ -38,6 +44,35 @@ export function ScratchCardEditorClient({ scratchCard, prizes }: { scratchCard: 
     } finally {
       setIsUpdatingWinner(false);
       router.refresh();
+    }
+  };
+
+  const handleToggleStatus = async () => {
+    const next = status === "PUBLISHED" ? "DRAFT" : "PUBLISHED";
+    setIsTogglingStatus(true);
+    try {
+      await setScratchCardStatusAction(scratchCard.id, next);
+      setStatus(next);
+    } finally {
+      setIsTogglingStatus(false);
+      router.refresh();
+    }
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    setSaveError(null);
+    const formData = new FormData();
+    formData.set("name", name);
+    formData.set("clientId", scratchCard.clientId);
+    formData.set("campaignId", scratchCard.campaignId);
+    formData.set("template", scratchCard.template || "vendedor-sincero");
+    formData.set("status", status);
+    formData.set("settings", JSON.stringify({ coverText, backgroundColor, cardColor }));
+    const result = await updateScratchCardAction(scratchCard.id, {}, formData);
+    setIsSaving(false);
+    if (result?.error || result?.fieldErrors) {
+      setSaveError(result.error ?? Object.values(result.fieldErrors ?? {})[0]?.[0] ?? "Não foi possível salvar.");
     }
   };
 
@@ -60,11 +95,18 @@ export function ScratchCardEditorClient({ scratchCard, prizes }: { scratchCard: 
         className="mb-4 pb-4 shrink-0"
         actions={
           <>
+            <Badge variant={status === "PUBLISHED" ? "success" : "neutral"} className="self-center mr-1">
+              {status === "PUBLISHED" ? "Publicado" : "Rascunho"}
+            </Badge>
+            <Button variant="secondary" onClick={handleToggleStatus} disabled={isTogglingStatus}>
+              {isTogglingStatus ? "Aguarde..." : status === "PUBLISHED" ? "Tornar rascunho" : "Publicar"}
+            </Button>
             <Button variant="secondary" onClick={() => router.back()}>Voltar</Button>
-            <Button>Salvar Alterações</Button>
+            <Button onClick={handleSave} disabled={isSaving}>{isSaving ? "Salvando..." : "Salvar Alterações"}</Button>
           </>
         }
       />
+      {saveError && <p className="text-sm text-danger mb-3">{saveError}</p>}
 
       {/* Tabs */}
       <div className="flex gap-4 mb-4">
